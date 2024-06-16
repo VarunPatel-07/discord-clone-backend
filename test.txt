@@ -1,0 +1,7 @@
+{
+    "Email": "varunspatelo7@gmail.com",
+    "FullName": "helloooooo",
+    "UserName": "helloooooo",
+    "Password": "helloooooo",
+    "DateOfBirth": "12-07-2004"
+}
