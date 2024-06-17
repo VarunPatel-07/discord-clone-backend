@@ -14,4 +14,4 @@ app.use("/app/api/auth", auth);
 
 app.listen(Port, () => {
   console.log(`Server running on localhost:${Port}`);
-});
+});    
