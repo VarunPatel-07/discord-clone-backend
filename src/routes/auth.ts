@@ -1,7 +1,14 @@
+import { configDotenv } from "dotenv";
+configDotenv();
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { database } from "../database";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
+const slatRound = process.env.SALT_ROUNDS as unknown as number;
+
+const Jwt_Secret = process.env.JWT_SECRET_KEY as string;
 const router = express.Router();
 
 // creating a route for the user registration
@@ -19,8 +26,7 @@ router.post(
     // await database.user.deleteMany();
     // // --code end --
     const { Email, Password, UserName, FullName, DateOfBirth } = req.body;
-    //todo: (1) use bycrypt to hash the password
-    // todo: (2) do not send the user_info send the jwt token
+
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -34,23 +40,64 @@ router.post(
       if (check_user) {
         return res.status(400).json({ message: "User already exists" });
       }
+      const salt = bcrypt.genSaltSync(Number(slatRound));
+      const hashPassword = bcrypt.hashSync(Password, salt);
       const user = await database.user.create({
         data: {
           Email: Email,
-          Password: Password,
+          Password: hashPassword,
           UserName: UserName,
           FullName: FullName,
           DateOfBirth: DateOfBirth,
         },
       });
+      // now we have added the user to the database now we send the jwt token in return
+      const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret);
       return res
         .status(200)
-        .json({ message: "User registered successfully", user_info: user });
+        .json({ message: "User registered successfully", token: AuthToken });
     } catch (error) {
       console.log(error);
-      res
+      return res
         .status(500)
         .json({ message: "Internal server error while registering user" });
+    }
+  }
+);
+router.post(
+  "/login",
+  [
+    body("UserName", "UserName is required").exists(),
+    body("Password", "Password is required").exists(),
+  ],
+  async (req: any, res: any) => {
+    const { UserName, Password } = req.body;
+    try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
+      const check_user = await database.user.findUnique({
+        where: {
+          UserName: UserName,
+        },
+      })
+      if (!check_user) {
+        return res.status(400).json({ message: "User does not exist" });
+      }
+      const check_password = await bcrypt.compare(Password, check_user.Password);
+      if (!check_password) {
+        return res.status(400).json({ message: "Incorrect password" });
+      }
+      const AuthToken = jwt.sign({ user_id: check_user.id }, Jwt_Secret);
+      return res
+        .status(200)
+        .json({ message: "User logged in successfully", token: AuthToken });
+    } catch (error) {
+      console.log(error);
+      return res
+        .status(500)
+        .json({ message: "Internal server error while logging in user" });
     }
   }
 );
