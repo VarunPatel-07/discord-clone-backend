@@ -5,6 +5,7 @@ import { body, validationResult } from "express-validator";
 import { database } from "../database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import multer from "multer";
 
 const slatRound = process.env.SALT_ROUNDS as unknown as number;
 
@@ -13,7 +14,7 @@ const router = express.Router();
 
 // creating a route for the user registration
 router.post(
-  "/register",
+  "/register", multer().none(),
   [
     body("Email").isEmail(),
     body("Password").exists(),
@@ -55,17 +56,17 @@ router.post(
       const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret);
       return res
         .status(200)
-        .json({ message: "User registered successfully", token: AuthToken });
+        .json({ message: "User registered successfully", token: AuthToken  , success:true});
     } catch (error) {
       console.log(error);
       return res
         .status(500)
-        .json({ message: "Internal server error while registering user" });
+        .json({ success:false,message: "Internal server error while registering user" });
     }
   }
 );
 router.post(
-  "/login",
+  "/login", multer().none(),
   [
     body("UserName", "UserName is required").exists(),
     body("Password", "Password is required").exists(),
@@ -92,12 +93,12 @@ router.post(
       const AuthToken = jwt.sign({ user_id: check_user.id }, Jwt_Secret);
       return res
         .status(200)
-        .json({ message: "User logged in successfully", token: AuthToken });
+        .json({ message: "User logged in successfully", token: AuthToken , success:true });
     } catch (error) {
       console.log(error);
       return res
         .status(500)
-        .json({ message: "Internal server error while logging in user" });
+        .json({ message: "Internal server error while logging in user" , success:false });
     }
   }
 );
