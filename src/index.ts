@@ -5,6 +5,9 @@ import cors from "cors";
 import auth from "./routes/auth";
 const app = express();
 const Port = process.env.PORT || 500;
+import passport from "passport";
+
+app.use(passport.initialize());
 app.use(cors());
 app.use(express.json());
 
