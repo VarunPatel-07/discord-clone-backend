@@ -29,10 +29,10 @@ model User {
 
 model Server {
   id         String @id @default(uuid())
-  name       String
-  imageUrl   String @db.Text
-  inviteCode String @db.Text
-  usersId    String
+  name       String @unique @db.VarChar(255)
+  imageUrl   String @db.VarChar(255)
+  inviteCode String @db.VarChar(255)
+  usersId    String @db.VarChar(500) 
   users      User   @relation(fields: [usersId], references: [id], onDelete: Cascade)
 
   createdAt DateTime  @default(now())
@@ -43,7 +43,7 @@ model Server {
   @@index([usersId])
 }
 
-enum MemeberRole {
+enum MemberRole {
   ADMIN
   MODERATOR
   GUEST
@@ -51,7 +51,7 @@ enum MemeberRole {
 
 model Member {
   id   String      @id @default(uuid())
-  role MemeberRole @default(GUEST)
+  role MemberRole @default(GUEST)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
