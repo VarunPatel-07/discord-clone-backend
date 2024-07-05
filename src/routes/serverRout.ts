@@ -81,7 +81,7 @@ routes.post(
           },
         },
       });
-      
+
       return res.status(200).json({
         message: "Server created successfully",
         server_id: server.id,
@@ -114,5 +114,28 @@ routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
     console.log(error);
   }
 });
-
+routes.get(
+  "/serverInfo/:serverId",
+  CheckAuthToken,
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const Server__Info = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+        include: {
+          channels: true,
+          members: true,
+        },
+      });
+      return res.status(200).json({ Server__Info, success: true });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while getting server info",
+      });
+    }
+  }
+);
 export default routes;

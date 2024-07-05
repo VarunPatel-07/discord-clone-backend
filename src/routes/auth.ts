@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
+import routes from "./serverRout";
 
 const slatRound = process.env.SALT_ROUNDS as unknown as number;
 
@@ -144,6 +145,32 @@ router.get(
     return res
       .status(401)
       .json({ success: false, message: "User not authenticated" });
+  }
+);
+router.get(
+  "/userDetails",
+  multer().none(),
+  CheckAuthToken,
+  async (req: any, res: any) => {
+    try {
+      const user = await database.user.findUnique({
+        where: {
+          id: req.user_id,
+        },
+      });
+      if (!user) {
+        return res
+          .status(400)
+          .json({ message: "User not found", success: false });
+      }
+      return res.status(200).json({ user, success: true });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while getting user details",
+      });
+    }
   }
 );
 
