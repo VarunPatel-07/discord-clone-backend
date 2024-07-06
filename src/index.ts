@@ -31,9 +31,15 @@ const socketIo = new io.Server(server, {
 socketIo.on("connection", (socket) => {
   // console.log("user connected");
 
-  // socket.on("newServerCreationOccurred", () => {
-  //   socketIo.emit("EmitNewServerCreated");
-  // });
+  socket.on("newServerCreationOccurred", () => {
+    socket.broadcast.emit("EmitNewServerCreated");
+  });
+  socket.on("NewMemberJoined", () => {
+    socket.broadcast.emit("New_Member_Joined");
+  });
+  socket.on("ServerInfoUpdated", () => {
+    socket.broadcast.emit("EmitServerInfoUpdated");
+  });
   socket.on("disconnect", () => {
     // console.log("user disconnected");
   });
