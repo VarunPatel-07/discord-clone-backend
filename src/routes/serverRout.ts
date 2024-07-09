@@ -134,6 +134,9 @@ routes.get(
             include: {
               user: true,
             },
+            orderBy: {
+              role: "asc",
+            },
           },
         },
       });
@@ -177,16 +180,7 @@ routes.put(
     }
   }
 );
-routes.put("/addMemberInServer", CheckAuthToken, async (req: any, res: any) => {
-  try {
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error while adding member in server",
-    });
-  }
-});
+
 routes.put(
   "/joinServerWithInviteCode",
   CheckAuthToken,
@@ -215,8 +209,9 @@ routes.put(
           .status(400)
           .json({ message: "Server not found", success: false });
       }
+      
       if (
-        Find_Server.members.some((member: any) => member.userId == req.user_id)
+        Find_Server.members.some((member: any) => member.userId === req.user_id)
       ) {
         return res.status(200).json({
           message: "You are already a member",
@@ -264,13 +259,12 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const imageArr = req.files;
-      
-    
+
       const { serverId, ServerName } = req.body as {
         serverId: string;
         ServerName: string;
       };
-      
+
       const server_info = await database.server.findUnique({
         where: {
           id: serverId,
@@ -334,6 +328,119 @@ routes.put(
       return res.status(500).json({
         success: false,
         message: "Internal server error while updating server info",
+      });
+    }
+  }
+);
+routes.put(
+  "/changeMemberRole/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params;
+      const { memberId, CurrentMemberRole, user_Id } = req.body as {
+        memberId: string;
+        CurrentMemberRole: MemberRole;
+        user_Id: string;
+      };
+
+      const server_info = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+            orderBy: {
+              role: "asc",
+            },
+          },
+        },
+      });
+
+      if (!server_info) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      if (server_info?.usersId != req.user_id) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to update this server info",
+        });
+      }
+      if (CurrentMemberRole == "GUEST") {
+        await database.member.update({
+          where: {
+            id: memberId,
+            userId: user_Id,
+          },
+          data: {
+            role: MemberRole.MODERATOR,
+          },
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "Member role changed successfully from guest to moderator",
+        });
+      } else {
+        await database.member.update({
+          where: {
+            id: memberId,
+            AND: [{ userId: user_Id }, { serverId: serverId }],
+          },
+          data: {
+            role: MemberRole.GUEST,
+          },
+        });
+        return res.status(200).json({
+          success: true,
+          message: "Member role changed successfully from moderator to guest",
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while updating server info",
+      });
+    }
+  }
+);
+routes.put(
+  "/kickOutMemberFromServer/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const { userId, memberId: memberId } = req.body as {
+        userId: string;
+        memberId: string;
+      };
+      const response = await database.server.update({
+        where: {
+          id: serverId,
+        },
+        data: {
+          members: {
+            delete: [{ userId: userId, id: memberId }],
+          },
+        },
+      });
+      res
+        .status(200)
+        .json({ message: "Member kicked out successfully", success: true });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while kicking out member from server",
       });
     }
   }
