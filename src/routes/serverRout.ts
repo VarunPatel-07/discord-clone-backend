@@ -187,7 +187,7 @@ routes.put(
   multer().none(),
   async (req: any, res: any) => {
     try {
-      console.log(req.body);
+      
       const { inviteCode } = req.body as { inviteCode: string };
       if (!inviteCode) {
         return res
@@ -209,7 +209,7 @@ routes.put(
           .status(400)
           .json({ message: "Server not found", success: false });
       }
-      
+
       if (
         Find_Server.members.some((member: any) => member.userId === req.user_id)
       ) {
@@ -423,7 +423,7 @@ routes.put(
         userId: string;
         memberId: string;
       };
-      const response = await database.server.update({
+      await database.server.update({
         where: {
           id: serverId,
         },
@@ -441,6 +441,104 @@ routes.put(
       return res.status(500).json({
         success: false,
         message: "Internal server error while kicking out member from server",
+      });
+    }
+  }
+);
+
+routes.put(
+  "/createNewChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    const { ChannelName, ChannelType } = req.body;
+    try {
+      const server_info = await database.server.findUnique({
+        where: {
+          id: req.params.serverId,
+        },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+          },
+          channels: true,
+        },
+      });
+      if (
+        server_info?.members.some(
+          (member: any) => member.userId === req.user_id
+        )
+      ) {
+        if (
+          server_info?.members.some(
+            (member: any) => member.role === MemberRole.ADMIN
+          ) ||
+          server_info?.members.some(
+            (member: any) => member.role === MemberRole.MODERATOR
+          )
+        ) {
+          await database.server.update({
+            where: {
+              id: req.params.serverId,
+            },
+            data: {
+              channels: {
+                create: [
+                  {
+                    type: ChannelType,
+                    name: ChannelName,
+                    userId: req.user_id,
+                  },
+                ],
+              },
+            },
+          });
+          return res.status(200).json({
+            message: "Channel created successfully",
+            success: true,
+          });
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        message: "Internal server error while creating new channel",
+        success: false,
+      });
+    }
+  }
+);
+routes.put(
+  "/LeaveServer/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const { userId, memberId: memberId } = req.body as {
+        userId: string;
+        memberId: string;
+      };
+      await database.server.update({
+        where: {
+          id: serverId,
+        },
+        data: {
+          members: {
+            delete: [{ userId: userId, id: memberId }],
+          },
+        },
+      });
+      res
+        .status(200)
+        .json({ message: "Member Left successfully", success: true });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while Leaving The server",
       });
     }
   }
