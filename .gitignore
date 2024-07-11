@@ -1,4 +1,8 @@
 node_modules
 # Keep environment variables out of version control
 .env
-.txt
+.env.local
+.env.development
+.env.test
+.env.production
+*.txt
