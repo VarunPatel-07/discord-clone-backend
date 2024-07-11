@@ -15,3 +15,12 @@ serverImage: [
       size: 283055
     }
   ]
+
+
+  {
+  message: 'Member kicked out successfully',
+  success: true,
+  serverId: '5d4e6a24-5049-40e9-9453-fdd88a8f152b',
+  memberId: '6d3ea398-b8c5-426f-8b83-b409996e65b8',
+  userId: 'fb558456-3c42-4457-94bf-1bb7aab11ad3'
+}

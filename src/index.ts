@@ -40,6 +40,13 @@ socketIo.on("connection", (socket) => {
   socket.on("ServerInfoUpdated", () => {
     socket.broadcast.emit("EmitServerInfoUpdated");
   });
+  socket.on("MemberRemovedByAdmin", ({ ...data }) => {
+    socket.broadcast.emit("EmitMemberRemovedByAdmin", data);
+  });
+  socket.on("ServerHasBeenDeleted", ({ ...data }) => {
+    ;
+    socket.broadcast.emit("EmitServerHasBeenDeleted", data);
+  });
   socket.on("disconnect", () => {
     // console.log("user disconnected");
   });

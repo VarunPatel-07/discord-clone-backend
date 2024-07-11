@@ -19,6 +19,7 @@ const Allowed_Formate = (req: any, file: any, cb: any) => {
     "text/csv",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
+    
   ];
   if (allowedFormats.includes(file.mimetype)) {
     cb(null, true);

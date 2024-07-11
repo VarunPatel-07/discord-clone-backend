@@ -10,7 +10,9 @@ import { MemberRole } from "@prisma/client";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import multer from "multer";
 const routes = express.Router();
-
+//
+//? CREATE SERVER
+//
 routes.post(
   "/create-server",
   Server__Image__Uploader,
@@ -96,7 +98,9 @@ routes.post(
     }
   }
 );
-
+//
+//? Get All Servers
+//
 routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
   try {
     const server_info = await database.server.findMany({
@@ -118,6 +122,9 @@ routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
     console.log(error);
   }
 });
+//
+//? GET SERVER INFO WITH SERVER ID
+//
 routes.get(
   "/serverInfo/:serverId",
   CheckAuthToken,
@@ -149,6 +156,9 @@ routes.get(
     }
   }
 );
+//
+//? REGENERATE SERVER INVITE CODE
+//
 routes.put(
   "/regenerateInviteCode",
   CheckAuthToken,
@@ -180,15 +190,17 @@ routes.put(
     }
   }
 );
-
+//
+//? JOIN SERVER WITH INVITE CODE
+//
 routes.put(
   "/joinServerWithInviteCode",
   CheckAuthToken,
   multer().none(),
   async (req: any, res: any) => {
     try {
-      
       const { inviteCode } = req.body as { inviteCode: string };
+
       if (!inviteCode) {
         return res
           .status(400)
@@ -210,9 +222,7 @@ routes.put(
           .json({ message: "Server not found", success: false });
       }
 
-      if (
-        Find_Server.members.some((member: any) => member.userId === req.user_id)
-      ) {
+      if (Find_Server.members.some((member) => member.userId === req.user_id)) {
         return res.status(200).json({
           message: "You are already a member",
           success: true,
@@ -251,6 +261,9 @@ routes.put(
     }
   }
 );
+//
+//? UPDATE SERVER INFO
+//
 routes.put(
   "/updateServerInfo",
   Server__Image__Uploader,
@@ -332,6 +345,9 @@ routes.put(
     }
   }
 );
+//
+//? CHANGE MEMBER ROLE
+//
 routes.put(
   "/changeMemberRole/:serverId",
   CheckAuthToken,
@@ -412,6 +428,9 @@ routes.put(
     }
   }
 );
+//
+//? KICK OUT MEMBER FROM SERVER
+//
 routes.put(
   "/kickOutMemberFromServer/:serverId",
   CheckAuthToken,
@@ -419,6 +438,24 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const server_info = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+      });
+
+      if (!server_info) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      if (server_info?.usersId != req.user_id) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to kick out member from server",
+        });
+      }
       const { userId, memberId: memberId } = req.body as {
         userId: string;
         memberId: string;
@@ -429,13 +466,18 @@ routes.put(
         },
         data: {
           members: {
-            delete: [{ userId: userId, id: memberId }],
+            deleteMany: [{ userId: userId, id: memberId }],
           },
         },
       });
-      res
-        .status(200)
-        .json({ message: "Member kicked out successfully", success: true });
+      res.status(200).json({
+        message: "Member kicked out successfully",
+        success: true,
+        serverId: serverId,
+        memberId: memberId,
+        userId: userId,
+        serverName: server_info.name,
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -445,7 +487,9 @@ routes.put(
     }
   }
 );
-
+//
+//? CREATE NEW CHANNEL
+//
 routes.put(
   "/createNewChannel/:serverId",
   CheckAuthToken,
@@ -510,6 +554,9 @@ routes.put(
     }
   }
 );
+//
+//? LEAVE SERVER
+//
 routes.put(
   "/LeaveServer/:serverId",
   CheckAuthToken,
@@ -527,7 +574,7 @@ routes.put(
         },
         data: {
           members: {
-            delete: [{ userId: userId, id: memberId }],
+            deleteMany: [{ userId: userId, id: memberId }],
           },
         },
       });
@@ -539,6 +586,55 @@ routes.put(
       return res.status(500).json({
         success: false,
         message: "Internal server error while Leaving The server",
+      });
+    }
+  }
+);
+//
+//? DELETE SERVER
+//
+routes.delete(
+  "/deleteServer/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+
+      const server = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+      });
+      if (!server) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      if (server.usersId != req.user_id) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to delete this server",
+        });
+      }
+      await database.server.delete({
+        where: {
+          id: serverId,
+        },
+      });
+      return res.status(200).json({
+        message: "Server deleted successfully",
+        success: true,
+        serverId: serverId,
+        serverName: server.name,
+        adminId: server.usersId,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while Deleting The server",
       });
     }
   }
