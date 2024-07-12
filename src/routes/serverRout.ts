@@ -6,7 +6,7 @@ import {
 import { database } from "../database";
 import { body, validationResult } from "express-validator";
 import { v4 as uuidv4 } from "uuid";
-import { MemberRole } from "@prisma/client";
+import { ChannelType, MemberRole } from "@prisma/client";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import multer from "multer";
 const routes = express.Router();
@@ -629,6 +629,138 @@ routes.delete(
         serverId: serverId,
         serverName: server.name,
         adminId: server.usersId,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while Deleting The server",
+      });
+    }
+  }
+);
+//
+//? Fetch Text Channel From Server With Server Id
+//
+routes.get(
+  "/FetchTextChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const text_channels = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+        include: {
+          channels: {
+            where: {
+              type: ChannelType.TEXT,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+      if (!text_channels) {
+        return res.status(200).json({
+          success: false,
+          message: "unable to find text channels",
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        text_channels: text_channels.channels,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while Deleting The server",
+      });
+    }
+  }
+);
+//
+//? Fetch Audio Channel From Server With Server Id
+//
+routes.get(
+  "/FetchAudioChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const audio_channels = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+        include: {
+          channels: {
+            where: {
+              type: ChannelType.AUDIO,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+      if (!audio_channels) {
+        return res.status(200).json({
+          success: false,
+          message: "unable to find audio channels",
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        audio_channels: audio_channels.channels,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while Deleting The server",
+      });
+    }
+  }
+);
+//
+//? Fetch Video Channel From Server With Server Id
+//
+routes.get(
+  "/FetchVideoChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const video_channels = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+        include: {
+          channels: {
+            where: {
+              type: ChannelType.VIDEO,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+      if (!video_channels) {
+        return res.status(200).json({
+          success: false,
+          message: "unable to find video channels",
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        video_channels: video_channels.channels,
       });
     } catch (error) {
       console.log(error);

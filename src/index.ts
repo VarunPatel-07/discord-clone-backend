@@ -47,6 +47,9 @@ socketIo.on("connection", (socket) => {
     ;
     socket.broadcast.emit("EmitServerHasBeenDeleted", data);
   });
+  socket.on("NewChannelHasBeenCreated", () => {
+    socket.broadcast.emit("EmitNewChannelHasBeenCreated");
+  })
   socket.on("disconnect", () => {
     // console.log("user disconnected");
   });
