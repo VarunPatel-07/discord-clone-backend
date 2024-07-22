@@ -24,3 +24,14 @@ serverImage: [
   memberId: '6d3ea398-b8c5-426f-8b83-b409996e65b8',
   userId: 'fb558456-3c42-4457-94bf-1bb7aab11ad3'
 }
+
+
+  _json: {
+    sub: '108093195857088066997',
+    name: 'Varun Patel',
+    given_name: 'Varun',
+    family_name: 'Patel',
+    picture: 'https://lh3.googleusercontent.com/a/ACg8ocLWp8B_ZTTOUzgJxFJj9VAJnHZo-eUWYZIe-iFT-Kyk7T6eF6s=s96-c',
+    email: 'patelvarun0712@gmail.com',
+    email_verified: true
+  }

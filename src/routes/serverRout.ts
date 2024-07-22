@@ -555,6 +555,118 @@ routes.put(
   }
 );
 //
+//? UPDATE CHANNEL
+//
+routes.put(
+  "/updateChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const { ChannelName, ChannelType, channelId } = req.body;
+      const server = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+      });
+      if (!server) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      if (server.usersId != req.user_id) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to delete this server",
+        });
+      }
+      await database.server.update({
+        where: {
+          id: serverId,
+        },
+        data: {
+          channels: {
+            update: {
+              where: {
+                id: channelId,
+              },
+              data: {
+                name: ChannelName,
+                type: ChannelType,
+              },
+            },
+          },
+        },
+      });
+
+      return res.status(200).json({
+        message: "Channel updated successfully",
+        success: true,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while updating channel",
+      });
+    }
+  }
+);
+//
+//? DELETE CHANNEL
+//
+routes.delete(
+  "/deleteChannel/:serverId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { serverId } = req.params as { serverId: string };
+      const { channelId } = req.body;
+      const server = await database.server.findUnique({
+        where: {
+          id: serverId,
+        },
+      });
+      if (!server) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      if (server.usersId != req.user_id) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to delete this server",
+        });
+      }
+      await database.server.update({
+        where: {
+          id: serverId,
+        },
+        data: {
+          channels: {
+            delete: {
+              id: channelId,
+            },
+          },
+        },
+      });
+      return res.status(200).json({
+        message: "Channel deleted successfully",
+        success: true,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while deleting channel",
+      });
+    }
+  }
+);
+//
 //? LEAVE SERVER
 //
 routes.put(

@@ -1,16 +1,14 @@
 import { configDotenv } from "dotenv";
 configDotenv();
 import express from "express";
-import passport from "passport";
 import { body, validationResult } from "express-validator";
 import { database } from "../database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
-import routes from "./serverRout";
 
-const slatRound = process.env.SALT_ROUNDS as unknown as number;
+const slatRound = process.env.SALT_ROUNDS as string;
 
 const Jwt_Secret = process.env.JWT_SECRET_KEY as string;
 const router = express.Router();
@@ -29,10 +27,7 @@ router.post(
     body("DateOfBirth").exists(),
   ],
   async (req: any, res: any) => {
-    // // this is only to test remove it in production --code start --
-    // await database.user.deleteMany();
-    // // --code end --
-    const { Email, Password, UserName, FullName, DateOfBirth } = req.body;
+    const { Email, Password, UserName, FullName } = req.body;
 
     try {
       const result = validationResult(req);
@@ -51,20 +46,25 @@ router.post(
       const hashPassword = bcrypt.hashSync(Password, salt);
       const user = await database.user.create({
         data: {
-          Email: Email,
-          Password: hashPassword,
-          UserName: UserName,
-          FullName: FullName,
-          DateOfBirth: DateOfBirth,
+          Email: Email as string,
+          Password: hashPassword as string,
+          UserName: UserName as string,
+          FullName: FullName as string,
+          Profile_Picture: "",
         },
       });
       // now we have added the user to the database now we send the jwt token in return
-      const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret);
-      return res.status(200).json({
-        message: "User registered successfully",
-        token: AuthToken,
-        success: true,
+      const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret, {
+        expiresIn: "15d",
       });
+      return res
+        .cookie("User_Authentication_Token", AuthToken)
+        .status(200)
+        .json({
+          message: "User registered successfully",
+          token: AuthToken,
+          success: true,
+        });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -91,7 +91,7 @@ router.post(
       }
       const check_user = await database.user.findUnique({
         where: {
-          UserName: UserName,
+          UserName: UserName as string,
         },
       });
       if (!check_user) {
@@ -104,12 +104,17 @@ router.post(
       if (!check_password) {
         return res.status(400).json({ message: "Incorrect password" });
       }
-      const AuthToken = jwt.sign({ user_id: check_user.id }, Jwt_Secret);
-      return res.status(200).json({
-        message: "User logged in successfully",
-        token: AuthToken,
-        success: true,
+      const AuthToken = jwt.sign({ user_id: check_user.id }, Jwt_Secret, {
+        expiresIn: "15d",
       });
+      return res
+        .cookie("User_Authentication_Token", AuthToken)
+        .status(200)
+        .json({
+          message: "User logged in successfully",
+          token: AuthToken,
+          success: true,
+        });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -173,28 +178,5 @@ router.get(
     }
   }
 );
-
-//todo  creating a route for authentication with google
-// passport.use(
-//   new GoogleStrategy(
-//     {
-//       clientID: process.env.SIGN_IN_WITH_GOOGLE_CLIENT_ID as string,
-//       clientSecret: process.env.SIGN_IN_WITH_GOOGLE_CLIENT_SECRETE as string,
-//       callbackURL: process.env.SIGN_IN_WITH_GOOGLE_CALLBACK_URL as string,
-//     },
-//     async (accessToken: any, refreshToken: any, profile: any, done: any) => {
-//       try {
-//         const find_user = await database.user.findUnique({
-//           where: {
-//             Email: profile._json.email,
-//           },
-//         })
-//       } catch (error) {
-//         console.log(error);
-//         return done(error, null);
-//       }
-//     }
-//   )
-// );
 
 export default router;

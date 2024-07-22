@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 
 const CheckAuthToken = async (req: any, res: any, next: any) => {
   try {
+    
     const AuthToken = req.headers["authorization"];
     if (!AuthToken) {
       return res
@@ -14,7 +15,7 @@ const CheckAuthToken = async (req: any, res: any, next: any) => {
       AuthToken,
       process.env.JWT_SECRET_KEY as string
     );
-
+    
     req.user_id = data.user_id;
     next();
   } catch (error) {
