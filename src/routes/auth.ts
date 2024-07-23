@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
+import redis from "../Redis";
 
 const slatRound = process.env.SALT_ROUNDS as string;
 
@@ -57,14 +58,12 @@ router.post(
       const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret, {
         expiresIn: "15d",
       });
+      const Frontend_URL = process.env.FRONTEND_REDIRECT_URL as string;
       return res
-        .cookie("User_Authentication_Token", AuthToken)
-        .status(200)
-        .json({
-          message: "User registered successfully",
-          token: AuthToken,
-          success: true,
-        });
+        .cookie("User_Authentication_Token", AuthToken, {
+          maxAge: 15 * 24 * 60 * 60 * 1000,
+        })
+        .redirect(Frontend_URL);
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -107,14 +106,13 @@ router.post(
       const AuthToken = jwt.sign({ user_id: check_user.id }, Jwt_Secret, {
         expiresIn: "15d",
       });
+
+      const Frontend_URL = process.env.FRONTEND_REDIRECT_URL as string;
       return res
-        .cookie("User_Authentication_Token", AuthToken)
-        .status(200)
-        .json({
-          message: "User logged in successfully",
-          token: AuthToken,
-          success: true,
-        });
+        .cookie("User_Authentication_Token", AuthToken, {
+          maxAge: 15 * 24 * 60 * 60 * 1000,
+        })
+        .redirect(Frontend_URL);
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -158,17 +156,28 @@ router.get(
   CheckAuthToken,
   async (req: any, res: any) => {
     try {
-      const user = await database.user.findUnique({
-        where: {
-          id: req.user_id,
-        },
-      });
-      if (!user) {
-        return res
-          .status(400)
-          .json({ message: "User not found", success: false });
+      const Cache_info = await redis.get(req.user_id);
+      if (Cache_info) {
+        return res.status(200).json({
+          user: JSON.parse(Cache_info),
+          success: true,
+          message: "User found in cache",
+        });
+      } else {
+        const user = await database.user.findUnique({
+          where: {
+            id: req.user_id,
+          },
+        });
+
+        if (!user) {
+          return res
+            .status(400)
+            .json({ message: "User not found", success: false });
+        }
+        await redis.set(req.user_id, JSON.stringify(user), "EX", 360);
+        return res.status(200).json({ user, success: true });
       }
-      return res.status(200).json({ user, success: true });
     } catch (error) {
       console.log(error);
       return res.status(500).json({

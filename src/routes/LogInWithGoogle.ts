@@ -76,9 +76,12 @@ router.get("/google/callback", passport.authenticate("google"), (req, res) => {
     expiresIn: "15d",
   });
 
+  const Frontend_URL = process.env.FRONTEND_REDIRECT_URL as string;
   return res
-    .cookie("User_Authentication_Token", AuthToken)
-    .redirect(`http://localhost:3000/pages/dashboard`);
+    .cookie("User_Authentication_Token", AuthToken, {
+      maxAge: 15 * 24 * 60 * 60 * 1000,
+    })
+    .redirect(Frontend_URL);
 });
 
 export default router;

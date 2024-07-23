@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ChannelType, MemberRole } from "@prisma/client";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import multer from "multer";
+import redis from "../Redis";
 const routes = express.Router();
 //
 //? CREATE SERVER
@@ -20,6 +21,9 @@ routes.post(
   [body("ServerName", "ServerName is required").exists()],
   async (req: any, res: any) => {
     try {
+      if (await redis.exists(`server_info_${req.user_id}`)) {
+        await redis.del(`server_info_${req.user_id}`);
+      }
       const imageArr = req.files;
       if (!imageArr) {
         return res
@@ -103,6 +107,15 @@ routes.post(
 //
 routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
   try {
+    const cacheKey = `server_info_${req.user_id}`;
+    const cacheServerInfo = await redis.get(cacheKey);
+
+    if (cacheServerInfo) {
+      // If cached data exists, parse it and return
+      return res
+        .status(200)
+        .json({ server_info: JSON.parse(cacheServerInfo), success: true });
+    }
     const server_info = await database.server.findMany({
       where: {
         members: {
@@ -117,6 +130,8 @@ routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
         .status(400)
         .json({ message: "No server found", success: false });
     }
+    // Cache the server information for future requests
+    await redis.set(cacheKey, JSON.stringify(server_info), "EX", 360);
     return res.status(200).json({ server_info, success: true });
   } catch (error) {
     console.log(error);
@@ -200,7 +215,9 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { inviteCode } = req.body as { inviteCode: string };
-
+      if (await redis.exists(`server_info_${req.user_id}`)) {
+        await redis.del(`server_info_${req.user_id}`);
+      }
       if (!inviteCode) {
         return res
           .status(400)

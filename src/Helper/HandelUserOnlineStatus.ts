@@ -2,6 +2,7 @@ import { configDotenv } from "dotenv";
 configDotenv();
 import jwt from "jsonwebtoken";
 import { database } from "../database";
+import redis from "../Redis";
 
 async function Handel_User_Online_Status(
   AuthToken: string,
@@ -16,14 +17,28 @@ async function Handel_User_Online_Status(
 
     const { user_id } = DecodedToken;
     if (!user_id) return;
-    await database.user.update({
-      where: {
-        id: user_id,
-      },
-      data: {
-        Is_Online: User_Status,
-      },
-    });
+    if (User_Status) {
+      await database.user.update({
+        where: {
+          id: user_id,
+        },
+        data: {
+          Is_Online: true,
+        },
+      });
+      await redis.del(user_id);
+    } else {
+      await database.user.update({
+        where: {
+          id: user_id,
+        },
+        data: {
+          Is_Online: false,
+        },
+      });
+      await redis.del(user_id);
+    }
+
     // Process the decoded token
   } catch (error) {
     console.log("error while updating user online status", error);
