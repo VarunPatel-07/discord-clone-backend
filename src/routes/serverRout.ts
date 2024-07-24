@@ -10,6 +10,10 @@ import { ChannelType, MemberRole } from "@prisma/client";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import multer from "multer";
 import redis from "../Redis";
+import {
+  DeleteSpecificDataInRedis,
+  StoreDataInRedis,
+} from "../Helper/StorDataInRedis";
 const routes = express.Router();
 //
 //? CREATE SERVER
@@ -21,8 +25,8 @@ routes.post(
   [body("ServerName", "ServerName is required").exists()],
   async (req: any, res: any) => {
     try {
-      if (await redis.exists(`server_info_${req.user_id}`)) {
-        await redis.del(`server_info_${req.user_id}`);
+      if (await redis.exists(`multiple_server_info_${req.user_id}`)) {
+        await redis.del(`multiple_server_info_${req.user_id}`);
       }
       const imageArr = req.files;
       if (!imageArr) {
@@ -107,7 +111,7 @@ routes.post(
 //
 routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
   try {
-    const cacheKey = `server_info_${req.user_id}`;
+    const cacheKey = `multiple_server_info_${req.user_id}`;
     const cacheServerInfo = await redis.get(cacheKey);
 
     if (cacheServerInfo) {
@@ -131,7 +135,8 @@ routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
         .json({ message: "No server found", success: false });
     }
     // Cache the server information for future requests
-    await redis.set(cacheKey, JSON.stringify(server_info), "EX", 360);
+
+    StoreDataInRedis(cacheKey, server_info);
     return res.status(200).json({ server_info, success: true });
   } catch (error) {
     console.log(error);
@@ -146,6 +151,14 @@ routes.get(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const cache_server_key = `single_server_${serverId}`;
+      const cacheServerInfo = await redis.get(cache_server_key);
+      if (cacheServerInfo) {
+        // If cached data exists, parse it and return
+        return res
+          .status(200)
+          .json({ Server__Info: JSON.parse(cacheServerInfo), success: true });
+      }
       const Server__Info = await database.server.findUnique({
         where: {
           id: serverId,
@@ -162,6 +175,7 @@ routes.get(
           },
         },
       });
+      StoreDataInRedis(cache_server_key, Server__Info);
       return res.status(200).json({ Server__Info, success: true });
     } catch (error) {
       return res.status(500).json({
@@ -181,6 +195,10 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.body as { serverId: string };
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      DeleteSpecificDataInRedis(multiple_server_info);
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(cache_server_key);
       if (!serverId) {
         return res
           .status(400)
@@ -194,7 +212,7 @@ routes.put(
           inviteCode: uuidv4(),
         },
       });
-
+      StoreDataInRedis(multiple_server_info, Server__Info);
       const Invite_Code = Server__Info.inviteCode;
       return res.status(200).json({ Invite_Code, success: true });
     } catch (error) {
@@ -215,9 +233,8 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { inviteCode } = req.body as { inviteCode: string };
-      if (await redis.exists(`server_info_${req.user_id}`)) {
-        await redis.del(`server_info_${req.user_id}`);
-      }
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      DeleteSpecificDataInRedis(multiple_server_info);
       if (!inviteCode) {
         return res
           .status(400)
@@ -239,6 +256,9 @@ routes.put(
           .json({ message: "Server not found", success: false });
       }
 
+      const server_cache = `single_server_${Find_Server.id}`;
+      DeleteSpecificDataInRedis(server_cache);
+
       if (Find_Server.members.some((member) => member.userId === req.user_id)) {
         return res.status(200).json({
           message: "You are already a member",
@@ -248,7 +268,7 @@ routes.put(
         });
       }
 
-      await database.server.update({
+      const Updated_Server = await database.server.update({
         where: {
           id: Find_Server.id,
         },
@@ -264,6 +284,7 @@ routes.put(
         },
       });
 
+      StoreDataInRedis(server_cache, Updated_Server);
       return res.status(200).json({
         message: "Server joined successfully",
         success: true,
@@ -294,6 +315,10 @@ routes.put(
         serverId: string;
         ServerName: string;
       };
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(multiple_server_info);
+      DeleteSpecificDataInRedis(cache_server_key);
 
       const server_info = await database.server.findUnique({
         where: {
@@ -313,7 +338,7 @@ routes.put(
         });
       }
       if (!imageArr.serverImage) {
-        await database.server.update({
+        const server_info = await database.server.update({
           where: {
             id: serverId,
           },
@@ -321,6 +346,7 @@ routes.put(
             name: ServerName,
           },
         });
+        StoreDataInRedis(cache_server_key, server_info);
       } else {
         const ServerImageBs64 = Buffer.from(
           imageArr.serverImage[0].buffer
@@ -338,7 +364,7 @@ routes.put(
         if (!CloudServerImage) {
           return console.error("Image upload failed");
         }
-        await database.server.update({
+        const server_info = await database.server.update({
           where: {
             id: serverId,
           },
@@ -347,6 +373,7 @@ routes.put(
             imageUrl: CloudServerImage?.secure_url as any,
           },
         });
+        StoreDataInRedis(cache_server_key, server_info);
       }
 
       return res.status(200).json({
@@ -372,6 +399,10 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params;
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(multiple_server_info);
+      DeleteSpecificDataInRedis(cache_server_key);
       const { memberId, CurrentMemberRole, user_Id } = req.body as {
         memberId: string;
         CurrentMemberRole: MemberRole;
@@ -407,7 +438,7 @@ routes.put(
         });
       }
       if (CurrentMemberRole == "GUEST") {
-        await database.member.update({
+        const updated_info = await database.member.update({
           where: {
             id: memberId,
             userId: user_Id,
@@ -416,13 +447,13 @@ routes.put(
             role: MemberRole.MODERATOR,
           },
         });
-
+        StoreDataInRedis(cache_server_key, updated_info);
         return res.status(200).json({
           success: true,
           message: "Member role changed successfully from guest to moderator",
         });
       } else {
-        await database.member.update({
+        const updated_info = await database.member.update({
           where: {
             id: memberId,
             AND: [{ userId: user_Id }, { serverId: serverId }],
@@ -431,6 +462,7 @@ routes.put(
             role: MemberRole.GUEST,
           },
         });
+        StoreDataInRedis(cache_server_key, updated_info);
         return res.status(200).json({
           success: true,
           message: "Member role changed successfully from moderator to guest",
@@ -455,6 +487,14 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const { userId, memberId: memberId } = req.body as {
+        userId: string;
+        memberId: string;
+      };
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(multiple_server_info);
+      DeleteSpecificDataInRedis(cache_server_key);
       const server_info = await database.server.findUnique({
         where: {
           id: serverId,
@@ -473,11 +513,8 @@ routes.put(
           message: "You are not authorized to kick out member from server",
         });
       }
-      const { userId, memberId: memberId } = req.body as {
-        userId: string;
-        memberId: string;
-      };
-      await database.server.update({
+
+      const server = await database.server.update({
         where: {
           id: serverId,
         },
@@ -487,6 +524,8 @@ routes.put(
           },
         },
       });
+
+      StoreDataInRedis(cache_server_key, server);
       res.status(200).json({
         message: "Member kicked out successfully",
         success: true,
@@ -513,7 +552,24 @@ routes.put(
   multer().none(),
   async (req: any, res: any) => {
     const { ChannelName, ChannelType } = req.body;
+    const { serverId } = req.params;
     try {
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(cache_server_key);
+      DeleteSpecificDataInRedis(multiple_server_info);
+      if (ChannelType == "TEXT") {
+        const cache_channel_key = `text_channel_${serverId}`;
+        DeleteSpecificDataInRedis(cache_channel_key);
+      }
+      if (ChannelType == "AUDIO") {
+        const cache_channel_key = `audio_channel_${serverId}`;
+        DeleteSpecificDataInRedis(cache_channel_key);
+      }
+      if (ChannelType == "VIDEO") {
+        const cache_channel_key = `video_channel_${serverId}`;
+        DeleteSpecificDataInRedis(cache_channel_key);
+      }
       const server_info = await database.server.findUnique({
         where: {
           id: req.params.serverId,
@@ -540,7 +596,7 @@ routes.put(
             (member: any) => member.role === MemberRole.MODERATOR
           )
         ) {
-          await database.server.update({
+          const updated_info = await database.server.update({
             where: {
               id: req.params.serverId,
             },
@@ -555,7 +611,25 @@ routes.put(
                 ],
               },
             },
+            include: {
+              members: true,
+              channels: true,
+            },
           });
+
+          if (ChannelType == "TEXT") {
+            const cache_channel_key = `text_channel_${serverId}`;
+            StoreDataInRedis(cache_channel_key, updated_info.channels);
+          }
+          if (ChannelType == "AUDIO") {
+            const cache_channel_key = `audio_channel_${serverId}`;
+            StoreDataInRedis(cache_channel_key, updated_info.channels);
+          }
+          if (ChannelType == "VIDEO") {
+            const cache_channel_key = `video_channel_${serverId}`;
+            StoreDataInRedis(cache_channel_key, updated_info.channels);
+          }
+          StoreDataInRedis(cache_server_key, updated_info);
           return res.status(200).json({
             message: "Channel created successfully",
             success: true,
@@ -582,24 +656,47 @@ routes.put(
     try {
       const { serverId } = req.params as { serverId: string };
       const { ChannelName, ChannelType, channelId } = req.body;
+
+      // Validate ChannelType
+      const validChannelTypes = ["TEXT", "AUDIO", "VIDEO"];
+      if (!validChannelTypes.includes(ChannelType)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid channel type",
+        });
+      }
+
       const server = await database.server.findUnique({
         where: {
           id: serverId,
         },
+        include: {
+          channels: true,
+          members: true,
+        },
       });
+
       if (!server) {
         return res.status(404).json({
           success: false,
           message: "Server not found",
         });
       }
+
+      const text_channel_key = `text_channel_${serverId}`;
+      const audio_channel_key = `audio_channel_${serverId}`;
+      const video_channel_key = `video_channel_${serverId}`;
+      DeleteSpecificDataInRedis(text_channel_key);
+      DeleteSpecificDataInRedis(audio_channel_key);
+      DeleteSpecificDataInRedis(video_channel_key);
+
       if (server.usersId != req.user_id) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to delete this server",
         });
       }
-      await database.server.update({
+      const updated_info = await database.server.update({
         where: {
           id: serverId,
         },
@@ -616,6 +713,9 @@ routes.put(
             },
           },
         },
+        include: {
+          channels: true,
+        },
       });
 
       return res.status(200).json({
@@ -631,6 +731,7 @@ routes.put(
     }
   }
 );
+
 //
 //? DELETE CHANNEL
 //
@@ -642,9 +743,18 @@ routes.delete(
     try {
       const { serverId } = req.params as { serverId: string };
       const { channelId } = req.body;
+      const text_channels = `text_channel_${serverId}`;
+      const audio_channels = `audio_channel_${serverId}`;
+      const video_channels = `video_channel_${serverId}`;
+      DeleteSpecificDataInRedis(text_channels);
+      DeleteSpecificDataInRedis(audio_channels);
+      DeleteSpecificDataInRedis(video_channels);
       const server = await database.server.findUnique({
         where: {
           id: serverId,
+        },
+        include: {
+          channels: true,
         },
       });
       if (!server) {
@@ -659,6 +769,15 @@ routes.delete(
           message: "You are not authorized to delete this server",
         });
       }
+      const channelExists = server.channels.some(
+        (channel) => channel.id === channelId
+      );
+      if (!channelExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Channel not found or does not belong to this server",
+        });
+      }
       await database.server.update({
         where: {
           id: serverId,
@@ -670,12 +789,17 @@ routes.delete(
             },
           },
         },
+        include: {
+          channels: true,
+        },
       });
+
       return res.status(200).json({
         message: "Channel deleted successfully",
         success: true,
       });
     } catch (error) {
+      console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while deleting channel",
@@ -693,11 +817,15 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(cache_server_key);
+      DeleteSpecificDataInRedis(multiple_server_info);
       const { userId, memberId: memberId } = req.body as {
         userId: string;
         memberId: string;
       };
-      await database.server.update({
+      const updated_info = await database.server.update({
         where: {
           id: serverId,
         },
@@ -707,6 +835,7 @@ routes.put(
           },
         },
       });
+      StoreDataInRedis(cache_server_key, updated_info);
       res
         .status(200)
         .json({ message: "Member Left successfully", success: true });
@@ -729,7 +858,10 @@ routes.delete(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
-
+      const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const cache_server_key = `single_server_${serverId}`;
+      DeleteSpecificDataInRedis(cache_server_key);
+      DeleteSpecificDataInRedis(multiple_server_info);
       const server = await database.server.findUnique({
         where: {
           id: serverId,
@@ -747,11 +879,12 @@ routes.delete(
           message: "You are not authorized to delete this server",
         });
       }
-      await database.server.delete({
+      const updated_info = await database.server.delete({
         where: {
           id: serverId,
         },
       });
+      StoreDataInRedis(cache_server_key, updated_info);
       return res.status(200).json({
         message: "Server deleted successfully",
         success: true,
@@ -778,6 +911,18 @@ routes.get(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+
+      const cache_channel_key = `text_channel_${serverId}`;
+      const CacheTextChannel: any = await redis.get(cache_channel_key);
+
+      if (CacheTextChannel) {
+        // If cached data exists, parse it and return
+        return res.status(200).json({
+          text_channels: JSON.parse(CacheTextChannel),
+          success: true,
+          message: "info from cache",
+        });
+      }
       const text_channels = await database.server.findUnique({
         where: {
           id: serverId,
@@ -799,6 +944,7 @@ routes.get(
           message: "unable to find text channels",
         });
       }
+      StoreDataInRedis(cache_channel_key, text_channels.channels);
       return res.status(200).json({
         success: true,
         text_channels: text_channels.channels,
@@ -822,6 +968,17 @@ routes.get(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const cache_audio_channel_key = `audio_channel_${serverId}`;
+      const CacheAudioChannel = await redis.get(cache_audio_channel_key);
+      // console.log("CacheAudioChannel", CacheAudioChannel);
+      if (CacheAudioChannel) {
+        // If cached data exists, parse it and return
+        return res.status(200).json({
+          audio_channels: JSON.parse(CacheAudioChannel),
+          success: true,
+          message: "info from cache",
+        });
+      }
       const audio_channels = await database.server.findUnique({
         where: {
           id: serverId,
@@ -843,6 +1000,7 @@ routes.get(
           message: "unable to find audio channels",
         });
       }
+      StoreDataInRedis(cache_audio_channel_key, audio_channels.channels);
       return res.status(200).json({
         success: true,
         audio_channels: audio_channels.channels,
@@ -866,6 +1024,17 @@ routes.get(
   async (req: any, res: any) => {
     try {
       const { serverId } = req.params as { serverId: string };
+      const cache_video_channel_key = `video_channel_${serverId}`;
+      const CacheVideoChannel: any = await redis.get(cache_video_channel_key);
+
+      if (CacheVideoChannel) {
+        // If cached data exists, parse it and return
+        return res.status(200).json({
+          video_channels: JSON.parse(CacheVideoChannel),
+          success: true,
+          message: "info from cache",
+        });
+      }
       const video_channels = await database.server.findUnique({
         where: {
           id: serverId,
@@ -881,12 +1050,14 @@ routes.get(
           },
         },
       });
+      // console.log("video_channels", video_channels);
       if (!video_channels) {
         return res.status(200).json({
           success: false,
           message: "unable to find video channels",
         });
       }
+      StoreDataInRedis(cache_video_channel_key, video_channels.channels);
       return res.status(200).json({
         success: true,
         video_channels: video_channels.channels,

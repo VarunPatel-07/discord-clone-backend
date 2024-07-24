@@ -28,6 +28,9 @@ app.use(express.urlencoded({ extended: true }));
 redis.on("connect", () => {
   console.log("connected to redis 📶 🥳");
 });
+redis.on("error", (err) => {
+  console.log(err);
+})
 
 // ? using express-session to Create a session For the User Login/Signup With Google Or Other Providers
 app.use(
