@@ -656,7 +656,12 @@ routes.put(
     try {
       const { serverId } = req.params as { serverId: string };
       const { ChannelName, ChannelType, channelId } = req.body;
-
+      const text_channel_key = `text_channel_${serverId}`;
+      const audio_channel_key = `audio_channel_${serverId}`;
+      const video_channel_key = `video_channel_${serverId}`;
+      await DeleteSpecificDataInRedis(text_channel_key);
+      await DeleteSpecificDataInRedis(audio_channel_key);
+      await DeleteSpecificDataInRedis(video_channel_key);
       // Validate ChannelType
       const validChannelTypes = ["TEXT", "AUDIO", "VIDEO"];
       if (!validChannelTypes.includes(ChannelType)) {
@@ -683,20 +688,13 @@ routes.put(
         });
       }
 
-      const text_channel_key = `text_channel_${serverId}`;
-      const audio_channel_key = `audio_channel_${serverId}`;
-      const video_channel_key = `video_channel_${serverId}`;
-      DeleteSpecificDataInRedis(text_channel_key);
-      DeleteSpecificDataInRedis(audio_channel_key);
-      DeleteSpecificDataInRedis(video_channel_key);
-
       if (server.usersId != req.user_id) {
         return res.status(403).json({
           success: false,
           message: "You are not authorized to delete this server",
         });
       }
-      const updated_info = await database.server.update({
+      await database.server.update({
         where: {
           id: serverId,
         },
@@ -743,12 +741,12 @@ routes.delete(
     try {
       const { serverId } = req.params as { serverId: string };
       const { channelId } = req.body;
-      const text_channels = `text_channel_${serverId}`;
-      const audio_channels = `audio_channel_${serverId}`;
-      const video_channels = `video_channel_${serverId}`;
-      DeleteSpecificDataInRedis(text_channels);
-      DeleteSpecificDataInRedis(audio_channels);
-      DeleteSpecificDataInRedis(video_channels);
+      const text_channel_key = `text_channel_${serverId}`;
+      const audio_channel_key = `audio_channel_${serverId}`;
+      const video_channel_key = `video_channel_${serverId}`;
+      await DeleteSpecificDataInRedis(text_channel_key);
+      await DeleteSpecificDataInRedis(audio_channel_key);
+      await DeleteSpecificDataInRedis(video_channel_key);
       const server = await database.server.findUnique({
         where: {
           id: serverId,
