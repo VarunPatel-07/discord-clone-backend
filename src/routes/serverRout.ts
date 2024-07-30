@@ -249,6 +249,7 @@ routes.put(
           members: true,
         },
       });
+      
 
       if (!Find_Server) {
         return res
@@ -285,13 +286,15 @@ routes.put(
       });
 
       StoreDataInRedis(server_cache, Updated_Server);
+
       return res.status(200).json({
         message: "Server joined successfully",
         success: true,
-        allReadyInServer: true,
+        allReadyInServer: false,
         Server_Id: Find_Server.id,
       });
     } catch (error) {
+      console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while joining server with invite code",
@@ -451,6 +454,7 @@ routes.put(
         return res.status(200).json({
           success: true,
           message: "Member role changed successfully from guest to moderator",
+          server_id: updated_info.serverId,
         });
       } else {
         const updated_info = await database.member.update({
@@ -466,6 +470,7 @@ routes.put(
         return res.status(200).json({
           success: true,
           message: "Member role changed successfully from moderator to guest",
+          server_id: updated_info.serverId,
         });
       }
     } catch (error) {

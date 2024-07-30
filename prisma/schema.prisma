@@ -32,15 +32,18 @@ model User {
   requestsSend    User[]         @relation("UserRequests")
   requestReceived User[]         @relation("UserRequests")
 
-  followers    User[] @relation("UserFollows")
-  following    User[] @relation("UserFollows")
-  blockedUsers User[] @relation("UserBlocks")
-  blockedBy    User[] @relation("UserBlocks")
+  followers                   User[]                 @relation("UserFollows")
+  following                   User[]                 @relation("UserFollows")
+  blockedUsers                User[]                 @relation("UserBlocks")
+  blockedBy                   User[]                 @relation("UserBlocks")
+  MemssageWithFollowerSender  MemssageWithFollower[] @relation("sender")
+  MemssageWithFollowerReciver MemssageWithFollower[] @relation("recever")
 }
 
 enum NotificationType {
   FOLLOW
   JOIN
+  MESSAGE
 }
 
 model Notification {
@@ -88,8 +91,15 @@ model Member {
   serverId String
   server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt                      DateTime                  @default(now())
+  updatedAt                      DateTime                  @updatedAt
+  Message                        Message[]
+  ConversationIntiated           Conversation[]            @relation("sender")
+  ConversationRecived            Conversation[]            @relation("recever")
+  DirectMessageWithMemberSender  DirectMessageWithMember[] @relation("sender")
+  DirectMessageWithMemberRecever DirectMessageWithMember[] @relation("recever")
+
+  directMessageWithMemberId String?
 
   @@index([userId])
   @@index([serverId])
@@ -112,9 +122,86 @@ model Channel {
   serverId String
   server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Message   Message[]
 
   @@index([userId])
   @@index([serverId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  FileURL   String   @db.Text
+  IsEdited  Boolean  @default(false)
+  IsDeleted Boolean  @default(false)
+  DeletedBy String   @db.VarChar(255)
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([channelId])
+}
+
+model Conversation {
+  id                      String                    @id @default(uuid())
+  SenderId                String
+  Sender                  Member                    @relation("sender", fields: [SenderId], references: [id], onDelete: Cascade)
+  ReceverId               String
+  Recever                 Member                    @relation("recever", fields: [ReceverId], references: [id], onDelete: Cascade)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  DirectMessageWithMember DirectMessageWithMember[]
+
+  @@unique([SenderId, ReceverId])
+  @@index([SenderId])
+  @@index([ReceverId])
+}
+
+model DirectMessageWithMember {
+  id        String  @id @default(uuid())
+  content   String  @db.Text
+  FileURL   String  @db.Text
+  IsEdited  Boolean @default(false)
+  IsDeleted Boolean @default(false)
+  SenderId  String
+  Sender    Member  @relation("sender", fields: [SenderId], references: [id], onDelete: Cascade)
+  ReceverId String
+  Recever   Member  @relation("recever", fields: [ReceverId], references: [id], onDelete: Cascade)
+
+  ConversationId String
+  Conversation   Conversation @relation(fields: [ConversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([SenderId, ReceverId])
+  @@index([SenderId])
+  @@index([ReceverId])
+}
+
+model MemssageWithFollower {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  FileURL   String   @db.Text
+  IsEdited  Boolean  @default(false)
+  IsDeleted Boolean  @default(false)
+  SenderId  String
+  Sender    User     @relation("sender", fields: [SenderId], references: [id], onDelete: Cascade)
+  ReceverId String
+  Recever   User     @relation("recever", fields: [ReceverId], references: [id], onDelete: Cascade)
+
+
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([SenderId, ReceverId])
+  @@index([SenderId])
+  @@index([ReceverId])
 }

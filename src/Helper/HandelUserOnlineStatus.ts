@@ -29,6 +29,7 @@ async function Handel_User_Online_Status(
     });
     const multiple_server_info = `multiple_server_info_${user_id}`;
     DeleteSpecificDataInRedis(multiple_server_info);
+    if (!user?.servers) return;
     user?.servers.map((server: any) => {
       const single_server = `single_server_${server.id}`;
       DeleteSpecificDataInRedis(single_server);

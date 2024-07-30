@@ -6,13 +6,14 @@ import auth from "./routes/auth";
 import serverRout from "./routes/serverRout";
 import LogInWithGoogle from "./routes/LogInWithGoogle";
 const app = express();
-const Port = process.env.PORT as string;
+const Port = (process.env.PORT as string) || 500;
 import passport from "passport";
-import io from "socket.io";
+import { Server as SocketIOServer } from "socket.io";
 import Handel_User_Online_Status from "./Helper/HandelUserOnlineStatus";
+import Follow from "./routes/Follow";
 import session from "express-session";
 import redis from "./Redis";
-import cookieParser = require("cookie-parser");
+import cookieParser from "cookie-parser";
 
 app.use(
   cors({
@@ -23,6 +24,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 // ? using the redis to store information in cache
 
 redis.on("connect", () => {
@@ -30,7 +32,7 @@ redis.on("connect", () => {
 });
 redis.on("error", (err) => {
   console.log(err);
-})
+});
 
 // ? using express-session to Create a session For the User Login/Signup With Google Or Other Providers
 app.use(
@@ -45,6 +47,7 @@ app.use(
 // creating a route for authentication
 app.use("/app/api/auth", auth);
 app.use("/app/api/server", serverRout);
+app.use("/app/api/follow", Follow);
 // Passport.js initialization to use Google authentication
 app.use(passport.initialize());
 app.use(passport.session());
@@ -57,52 +60,61 @@ app.use("/app/api/googleAuth", LogInWithGoogle);
 const server = app.listen(Port, () => {
   console.log(`Server running on localhost:${Port} 🥳`);
 });
-const socketIo = new io.Server(server, {
+const io = new SocketIOServer(server, {
+  pingTimeout: 60000,
   cors: {
     origin: true,
   },
-  pingTimeout: 60000,
 });
 
-socketIo.on("connection", (socket) => {
-  if (socket.handshake.auth.token != undefined) {
-    Handel_User_Online_Status(
-      socket.handshake.auth.token as string,
-      true as boolean
-    );
+io.on("connection", (socket) => {
+  // console.log("a user connected", socket.id);
+  socket.on("initialize", (UserData) => {
+    socket.join(UserData._id);
+    // socket.emit("connected");
+  });
+
+  const token = socket.handshake.auth.token;
+  if (token) {
+    Handel_User_Online_Status(token as string, true);
     socket.broadcast.emit("EmitUserStatusChanged");
   }
 
-  socket.on("newServerCreationOccurred", () => {
-    socket.broadcast.emit("EmitNewServerCreated");
+  socket.on("newServerCreationOccurred", (data) => {
+    socket.broadcast.emit("EmitNewServerCreated", data);
   });
-  socket.on("NewMemberJoined", () => {
-    socket.broadcast.emit("New_Member_Joined");
+
+  socket.on("NewMemberJoinedUsingInvitationCode", (data) => {
+    socket.broadcast.emit("EmitNewMemberJoinedUsingInvitationCode", data);
   });
+
   socket.on("ServerInfoUpdated", () => {
     socket.broadcast.emit("EmitServerInfoUpdated");
   });
-  socket.on("MemberRemovedByAdmin", ({ ...data }) => {
-    socket.broadcast.emit("EmitMemberRemovedByAdmin", data);
+
+  socket.on("MemberRemovedByAdmin", (data) => {
+    socket.broadcast.emit("EmitThatMemberRemovedByAdmin", data);
   });
-  socket.on("ServerHasBeenDeleted", ({ ...data }) => {
+
+  socket.on("ServerHasBeenDeleted", (data) => {
+    console.log("ServerHasBeenDeleted", data);
     socket.broadcast.emit("EmitServerHasBeenDeleted", data);
   });
+
   socket.on("NewChannelHasBeenCreated", () => {
     socket.broadcast.emit("EmitNewChannelHasBeenCreated");
   });
 
   socket.on("disconnect", () => {
-    if (socket.handshake.auth.token != undefined) {
-      Handel_User_Online_Status(
-        socket.handshake.auth.token as string,
-        false as boolean
-      );
+    if (token) {
+      Handel_User_Online_Status(token as string, false);
       socket.broadcast.emit("EmitUserStatusChanged");
     }
     // console.log("user disconnected");
   });
-  socket.on("connect_error", (err) => {
-    console.error("Socket connection error:", err);
+
+  socket.off("initialize", (UserData) => {
+    console.log("USER DISCONNECTED");
+    socket.leave(UserData._id);
   });
 });

@@ -25,7 +25,6 @@ router.post(
     body("Password").exists(),
     body("UserName").exists(),
     body("FullName").exists(),
-    body("DateOfBirth").exists(),
   ],
   async (req: any, res: any) => {
     const { Email, Password, UserName, FullName } = req.body;
@@ -58,6 +57,7 @@ router.post(
       const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret, {
         expiresIn: "15d",
       });
+      console.log(AuthToken);
       const Frontend_URL = process.env.FRONTEND_REDIRECT_URL as string;
       return res
         .cookie("User_Authentication_Token", AuthToken, {
