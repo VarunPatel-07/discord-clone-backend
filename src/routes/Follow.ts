@@ -3,7 +3,10 @@ import CheckAuthToken from "../../middleware/CheckAuthToken";
 import multer from "multer";
 import { database } from "../database";
 import redis from "../Redis";
-import { StoreDataInRedis } from "../Helper/StorDataInRedis";
+import {
+  DeleteSpecificDataInRedis,
+  StoreDataInRedis,
+} from "../Helper/StorDataInRedis";
 
 const routes = express.Router();
 
@@ -14,6 +17,15 @@ routes.post(
   async (req: any, res: any) => {
     try {
       const { UserIdYouWantToFollow } = req.body;
+      if (!UserIdYouWantToFollow)
+        return res.status(400).json({
+          success: false,
+          message: "UserIdYouWantToFollow is required",
+        });
+      const request_sender_key_string = `requestsSendStoredInCache_${req.user_id}`;
+      const request_receiver_key_string = `requestsReceivedStoredInCache_${UserIdYouWantToFollow}`;
+      await DeleteSpecificDataInRedis(request_sender_key_string);
+      await DeleteSpecificDataInRedis(request_receiver_key_string);
       const user = await database.user.findUnique({
         where: {
           id: req.user_id,
@@ -25,7 +37,7 @@ routes.post(
           requestsSend: true,
         },
       });
-      console.log(user);
+
       if (!user) return;
 
       if (user.following.some((user) => user.id === UserIdYouWantToFollow)) {
@@ -40,7 +52,7 @@ routes.post(
           message: " You Already sent follow request to this user",
         });
       }
-      const user1 = await database.user.update({
+      const request_sender = await database.user.update({
         where: {
           id: req.user_id,
         },
@@ -60,7 +72,7 @@ routes.post(
           requestsSend: true,
         },
       });
-      const user2 = await database.user.update({
+      const request_receiver = await database.user.update({
         where: {
           id: UserIdYouWantToFollow,
         },
@@ -81,8 +93,14 @@ routes.post(
         },
       });
 
-      console.log("user1", user1);
-      console.log("user2", user2);
+      await StoreDataInRedis(
+        request_sender_key_string,
+        JSON.stringify(request_sender)
+      );
+      await StoreDataInRedis(
+        request_receiver_key_string,
+        JSON.stringify(request_receiver)
+      );
       return res.status(200).json({
         success: true,
         message: "Follow request sent successfully",
@@ -199,6 +217,7 @@ routes.get(
           requestsSend: true,
         },
       });
+      console.log(user);
 
       if (!user) {
         return res.status(400).json({
