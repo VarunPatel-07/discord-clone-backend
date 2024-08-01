@@ -15,7 +15,6 @@ routes.post(
   CheckAuthToken,
   multer().none(),
   async (req: any, res: any) => {
-    console.log(req.body);
     try {
       const { UserIdYouWantToFollow } = req.body;
       if (!UserIdYouWantToFollow)
@@ -94,17 +93,21 @@ routes.post(
         },
       });
 
-      await StoreDataInRedis(
-        request_sender_key_string,
-        JSON.stringify(request_sender)
-      );
-      await StoreDataInRedis(
-        request_receiver_key_string,
-        JSON.stringify(request_receiver)
-      );
       return res.status(200).json({
         success: true,
         message: "Follow request sent successfully",
+        request_sender_info: {
+          id: request_sender.id,
+          name: request_sender.FullName,
+          UserName: request_sender.UserName,
+          Profile_Picture: request_sender.Profile_Picture,
+        },
+        request_receiver_info: {
+          id: request_receiver.id,
+          name: request_receiver.FullName,
+          UserName: request_receiver.UserName,
+          Profile_Picture: request_receiver.Profile_Picture,
+        },
       });
     } catch (error) {
       console.log(error);
@@ -203,11 +206,12 @@ routes.get(
     try {
       const key_string = `requestsSendStoredInCache_${req.user_id}`;
       const sentRequestsInCache = await redis.get(key_string);
+
       if (sentRequestsInCache) {
         return res.status(200).json({
           success: true,
-          message: "find all the sent requests in cache",
-          sent_requests: JSON.parse(sentRequestsInCache),
+          message: " he,lllllll find all the sent requests in cache",
+          sent_requests: JSON.parse(sentRequestsInCache as string),
         });
       }
       const user = await database.user.findUnique({
@@ -218,7 +222,6 @@ routes.get(
           requestsSend: true,
         },
       });
-      console.log(user);
 
       if (!user) {
         return res.status(400).json({
@@ -370,6 +373,246 @@ routes.get(
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching following",
+      });
+    }
+  }
+);
+routes.put(
+  "/AcceptTheFollowRequestOfTheUser",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { receiverId } = req.body;
+      const sender_key_sent_req = `requestsSendStoredInCache_${req.user_id}`;
+      const sender_key_received_req = `requestsReceivedStoredInCache_${req.user_id}`;
+      const receiver_key_sent_req = `requestsSendStoredInCache_${receiverId}`;
+      const receiver_key_received_req = `requestsReceivedStoredInCache_${receiverId}`;
+      //   for sender
+      await DeleteSpecificDataInRedis(sender_key_sent_req);
+      await DeleteSpecificDataInRedis(sender_key_received_req);
+      // for receiver
+      await DeleteSpecificDataInRedis(receiver_key_sent_req);
+      await DeleteSpecificDataInRedis(receiver_key_received_req);
+      if (!receiverId) {
+        return res.status(400).json({
+          success: false,
+          message: "receiverId is required",
+        });
+      }
+      const request_accepter = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          requestReceived: {
+            disconnect: [
+              {
+                id: receiverId,
+              },
+            ],
+          },
+          followers: {
+            connect: [
+              {
+                id: receiverId,
+              },
+            ],
+          },
+        },
+      });
+      const request_sender = await database.user.update({
+        where: {
+          id: receiverId,
+        },
+        data: {
+          requestsSend: {
+            disconnect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+          following: {
+            connect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Follow request accepted successfully",
+        request_accepter_info: {
+          id: request_accepter.id,
+          name: request_accepter.FullName,
+          UserName: request_accepter.UserName,
+          Profile_Picture: request_accepter.Profile_Picture,
+        },
+        request_sender_info: {
+          id: request_sender.id,
+          name: request_sender.FullName,
+          UserName: request_sender.UserName,
+          Profile_Picture: request_sender.Profile_Picture,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while accepting the follow request",
+      });
+    }
+  }
+);
+routes.put(
+  "/WithdrawTheFollowRequest",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { receiverId } = req.body;
+
+      if (!receiverId)
+        return res.status(400).json({
+          success: false,
+          message: "receiverId is required",
+        });
+
+      //
+      // ? Now We will check that the user have any data in the cache or not and if have then we will delete that data from the cache
+      //
+      const sender_key_sent_req = `requestsSendStoredInCache_${req.user_id}`;
+      const sender_key_received_req = `requestsReceivedStoredInCache_${req.user_id}`;
+      const receiver_key_sent_req = `requestsSendStoredInCache_${receiverId}`;
+      const receiver_key_received_req = `requestsReceivedStoredInCache_${receiverId}`;
+      //   for sender
+      await DeleteSpecificDataInRedis(sender_key_sent_req);
+      await DeleteSpecificDataInRedis(sender_key_received_req);
+      // for receiver
+      await DeleteSpecificDataInRedis(receiver_key_sent_req);
+      await DeleteSpecificDataInRedis(receiver_key_received_req);
+      //
+      // ? Now The Main Logic code of this API
+      //
+      const request_sender = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          requestsSend: {
+            disconnect: [
+              {
+                id: receiverId,
+              },
+            ],
+          },
+        },
+      });
+
+      const request_receiver = await database.user.update({
+        where: {
+          id: receiverId,
+        },
+        data: {
+          requestReceived: {
+            disconnect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Request withdrawn successfully",
+        request_sender_info: {
+          id: request_sender.id,
+          name: request_sender.FullName,
+          UserName: request_sender.UserName,
+          Profile_Picture: request_sender.Profile_Picture,
+        },
+        request_receiver_info: {
+          id: request_receiver.id,
+          name: request_receiver.FullName,
+          UserName: request_receiver.UserName,
+          Profile_Picture: request_receiver.Profile_Picture,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while withdrawing the follow request",
+      });
+    }
+  }
+);
+routes.put(
+  "/IgnoreTheFollowRequestFromTheUser",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { senderId } = req.body;
+
+      if (!senderId || senderId === "undefined")
+        return res.status(400).json({
+          success: false,
+          message: "receiverId is required",
+        });
+      const sender_key_sent_req = `requestsSendStoredInCache_${senderId}`;
+      const sender_key_received_req = `requestsReceivedStoredInCache_${senderId}`;
+      const receiver_key_sent_req = `requestsSendStoredInCache_${req.user_id}`;
+      const receiver_key_received_req = `requestsReceivedStoredInCache_${req.user_id}`;
+      //   for sender
+      await DeleteSpecificDataInRedis(sender_key_sent_req);
+      await DeleteSpecificDataInRedis(sender_key_received_req);
+      // for receiver
+      await DeleteSpecificDataInRedis(receiver_key_sent_req);
+      await DeleteSpecificDataInRedis(receiver_key_received_req);
+      const request_sender = await database.user.update({
+        where: {
+          id: senderId,
+        },
+        data: {
+          requestsSend: {
+            disconnect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+        },
+      });
+      const request_receiver = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          requestReceived: {
+            disconnect: [
+              {
+                id: senderId,
+              },
+            ],
+          },
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message: "Request ignored successfully",
+      });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error while ignoring the follow request",
       });
     }
   }

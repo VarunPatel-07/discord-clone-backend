@@ -104,7 +104,18 @@ io.on("connection", (socket) => {
   socket.on("NewChannelHasBeenCreated", () => {
     socket.broadcast.emit("EmitNewChannelHasBeenCreated");
   });
-
+  socket.on("NewFollowRequestHasBeenSent", (data) => {
+    socket.broadcast.emit("EmitNewFollowRequestHasBeenSent", data);
+  });
+  socket.on("A_FollowRequestHasBeenWithdrawn", () => {
+    socket.broadcast.emit("EmitA_FollowRequestHasBeenWithdrawn");
+  });
+  socket.on("A_FollowRequestHasBeenIgnored", () => {
+    socket.broadcast.emit("EmitA_FollowRequestHasBeenIgnored");
+  });
+  socket.on("YourFollowRequestHasBeenAccepted", (data) => {
+    socket.broadcast.emit("EmitYourFollowRequestHasBeenAccepted", data);
+  });
   socket.on("disconnect", () => {
     if (token) {
       Handel_User_Online_Status(token as string, false);
