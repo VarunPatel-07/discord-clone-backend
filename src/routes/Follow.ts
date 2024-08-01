@@ -15,6 +15,7 @@ routes.post(
   CheckAuthToken,
   multer().none(),
   async (req: any, res: any) => {
+    console.log(req.body);
     try {
       const { UserIdYouWantToFollow } = req.body;
       if (!UserIdYouWantToFollow)
