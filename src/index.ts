@@ -116,6 +116,13 @@ io.on("connection", (socket) => {
   socket.on("YourFollowRequestHasBeenAccepted", (data) => {
     socket.broadcast.emit("EmitYourFollowRequestHasBeenAccepted", data);
   });
+  socket.on("UserUnFollowedAnFollower", (data) => {
+    socket.broadcast.emit("EmitUserUnFollowedAnFollower", data);
+  });
+  socket.on("AnFollowerHasBeenRemoved", () => {
+   
+    socket.broadcast.emit("EmitAnFollowerHasBeenRemoved");
+  });
   socket.on("disconnect", () => {
     if (token) {
       Handel_User_Online_Status(token as string, false);

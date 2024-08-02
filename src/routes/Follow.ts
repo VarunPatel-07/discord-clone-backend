@@ -9,7 +9,9 @@ import {
 } from "../Helper/StorDataInRedis";
 
 const routes = express.Router();
-
+//
+// * (1) creating a route to send follow request
+//
 routes.post(
   "/SendFollowRequest",
   CheckAuthToken,
@@ -46,6 +48,7 @@ routes.post(
           message: " You Already following this user",
         });
       }
+
       if (user.requestsSend.some((user) => user.id === UserIdYouWantToFollow)) {
         return res.status(400).json({
           success: false,
@@ -110,7 +113,7 @@ routes.post(
         },
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while sending follow request",
@@ -118,6 +121,9 @@ routes.post(
     }
   }
 );
+//
+// * (2) Fetching The User Based On The Type Like [online , all , blocked]
+//
 routes.get(
   "/FetchAllTheTypeOfUserFollowers/:userType",
   CheckAuthToken,
@@ -125,7 +131,12 @@ routes.get(
   async (req: any, res: any) => {
     try {
       const { userType } = req.params;
-
+      if (!["online", "all", "blocked"].includes(userType)) {
+        return res.status(400).json({
+          success: false,
+          message: "Not a valid userType",
+        });
+      }
       if (!userType)
         return res.status(400).json({
           success: false,
@@ -135,8 +146,28 @@ routes.get(
         const user = await database.user.findMany({
           where: {
             Is_Online: true,
-            NOT: {
-              id: req.user_id,
+            id: {
+              not: req.user_id,
+            },
+            blockedBy: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            blockedUsers: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            followers: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            following: {
+              none: {
+                id: req.user_id,
+              },
             },
           },
         });
@@ -152,8 +183,28 @@ routes.get(
       if (userType === "all") {
         const user = await database.user.findMany({
           where: {
-            NOT: {
-              id: req.user_id,
+            id: {
+              not: req.user_id,
+            },
+            blockedBy: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            blockedUsers: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            followers: {
+              none: {
+                id: req.user_id,
+              },
+            },
+            following: {
+              none: {
+                id: req.user_id,
+              },
             },
           },
         });
@@ -189,7 +240,7 @@ routes.get(
         });
       }
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message:
@@ -198,6 +249,9 @@ routes.get(
     }
   }
 );
+//
+// * (3) Fetching All The Sent Requests OF The User
+//
 routes.get(
   "/FetchAllTheSentRequestsOfUser",
   CheckAuthToken,
@@ -237,7 +291,7 @@ routes.get(
         sent_requests: user?.requestsSend,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching sent requests",
@@ -245,6 +299,9 @@ routes.get(
     }
   }
 );
+//
+// * (4) Fetching All The Received Requests OF The User
+//
 routes.get(
   "/FetchAllTheReceivedRequestsOfUser",
   CheckAuthToken,
@@ -281,7 +338,7 @@ routes.get(
         received_requests: user?.requestReceived,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching received requests",
@@ -289,6 +346,9 @@ routes.get(
     }
   }
 );
+//
+// * (5) Fetching All The Follower Of The User
+//
 routes.get(
   "/FetchAllTheFollowersOfUser",
   CheckAuthToken,
@@ -312,6 +372,7 @@ routes.get(
           followers: true,
         },
       });
+      // console.log(user);
       if (!user) {
         return res.status(400).json({
           success: false,
@@ -333,6 +394,9 @@ routes.get(
     }
   }
 );
+//
+// * (6) Fetching All The Following Of The User
+//
 routes.get(
   "/FetchAllTheFollowingOfUser",
   CheckAuthToken,
@@ -354,8 +418,10 @@ routes.get(
         },
         include: {
           following: true,
+          followers: true,
         },
       });
+      // console.log(user);
       if (!user) {
         return res.status(400).json({
           success: false,
@@ -377,6 +443,9 @@ routes.get(
     }
   }
 );
+//
+// * (7) This  Route Is Used To Accept The Follow Request Of The User
+//
 routes.put(
   "/AcceptTheFollowRequestOfTheUser",
   CheckAuthToken,
@@ -386,14 +455,22 @@ routes.put(
       const { receiverId } = req.body;
       const sender_key_sent_req = `requestsSendStoredInCache_${req.user_id}`;
       const sender_key_received_req = `requestsReceivedStoredInCache_${req.user_id}`;
+      const sender_key_followers = `followersStoredInCache_${req.user_id}`;
+      const sender_key_following = `followingStoredInCache_${req.user_id}`;
       const receiver_key_sent_req = `requestsSendStoredInCache_${receiverId}`;
       const receiver_key_received_req = `requestsReceivedStoredInCache_${receiverId}`;
+      const receiver_key_followers = `followersStoredInCache_${receiverId}`;
+      const receiver_key_following = `followingStoredInCache_${receiverId}`;
       //   for sender
       await DeleteSpecificDataInRedis(sender_key_sent_req);
       await DeleteSpecificDataInRedis(sender_key_received_req);
       // for receiver
       await DeleteSpecificDataInRedis(receiver_key_sent_req);
       await DeleteSpecificDataInRedis(receiver_key_received_req);
+      await DeleteSpecificDataInRedis(sender_key_followers);
+      await DeleteSpecificDataInRedis(sender_key_following);
+      await DeleteSpecificDataInRedis(receiver_key_followers);
+      await DeleteSpecificDataInRedis(receiver_key_following);
       if (!receiverId) {
         return res.status(400).json({
           success: false,
@@ -460,7 +537,7 @@ routes.put(
         },
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while accepting the follow request",
@@ -468,6 +545,9 @@ routes.put(
     }
   }
 );
+//
+// * (8) This  Route Is Used To Withdraw The Follow Request Of The User
+//
 routes.put(
   "/WithdrawTheFollowRequest",
   CheckAuthToken,
@@ -545,7 +625,7 @@ routes.put(
         },
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while withdrawing the follow request",
@@ -553,6 +633,9 @@ routes.put(
     }
   }
 );
+//
+// * (9) This  Route Is Used To Ignore The Follow Request From The User
+//
 routes.put(
   "/IgnoreTheFollowRequestFromTheUser",
   CheckAuthToken,
@@ -609,10 +692,204 @@ routes.put(
         message: "Request ignored successfully",
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       res.status(500).json({
         success: false,
         message: "Internal server error while ignoring the follow request",
+      });
+    }
+  }
+);
+//
+// * (10) This Route Is Used To Unfollow The Specific User
+//
+routes.put(
+  "/UnfollowTheSpecificUser",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { followerId } = req.body;
+      if (!followerId || followerId === "undefined")
+        return res.status(400).json({
+          success: false,
+          message: "followerId is required",
+        });
+      const sender_key_followers = `followersStoredInCache_${followerId}`;
+      const sender_key_following = `followingStoredInCache_${followerId}`;
+      const receiver_key_followers = `followersStoredInCache_${req.user_id}`;
+      const receiver_key_following = `followingStoredInCache_${req.user_id}`;
+      await DeleteSpecificDataInRedis(sender_key_followers);
+      await DeleteSpecificDataInRedis(sender_key_following);
+      await DeleteSpecificDataInRedis(receiver_key_followers);
+      await DeleteSpecificDataInRedis(receiver_key_following);
+
+      const unfollowing_initiator = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          following: {
+            disconnect: [
+              {
+                id: followerId,
+              },
+            ],
+          },
+        },
+      });
+      if (!unfollowing_initiator)
+        return res.status(400).json({
+          success: false,
+          message: "Something went wrong while unfollowing the user",
+        });
+      const unfollowing_receiver = await database.user.update({
+        where: {
+          id: followerId,
+        },
+        data: {
+          followers: {
+            disconnect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+        },
+      });
+
+      if (!unfollowing_receiver)
+        return res.status(400).json({
+          success: false,
+          message: "Something went wrong while unfollowing the user",
+        });
+      return res.status(200).json({
+        success: true,
+        message: "Unfollowed successfully",
+      });
+    } catch (error) {
+      // console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while unfollowing the user",
+      });
+    }
+  }
+);
+//
+// * (11) This Route  Is Used To  Remove A Specific Follower From Your Following List
+//
+routes.put(
+  "/RemoveFollowerFromYourFollowerList",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { followerId } = req.body;
+      if (!followerId || followerId === "undefined")
+        return res.status(400).json({
+          success: false,
+          message: "followerId is required",
+        });
+      const sender_key_followers = `followersStoredInCache_${followerId}`;
+      const sender_key_following = `followingStoredInCache_${followerId}`;
+      const receiver_key_followers = `followersStoredInCache_${req.user_id}`;
+      const receiver_key_following = `followingStoredInCache_${req.user_id}`;
+      await DeleteSpecificDataInRedis(sender_key_followers);
+      await DeleteSpecificDataInRedis(sender_key_following);
+      await DeleteSpecificDataInRedis(receiver_key_followers);
+      await DeleteSpecificDataInRedis(receiver_key_following);
+      const following_remover = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          followers: {
+            disconnect: [
+              {
+                id: followerId,
+              },
+            ],
+          },
+        },
+      });
+      const removed_follower = await database.user.update({
+        where: {
+          id: followerId,
+        },
+        data: {
+          following: {
+            disconnect: [
+              {
+                id: req.user_id,
+              },
+            ],
+          },
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message: "Follower removed successfully",
+      });
+    } catch (error) {
+      // console.log(error);
+      return res.status(500).json({
+        success: false,
+        message:
+          "Internal server error while removing the follower from your following list",
+      });
+    }
+  }
+);
+//
+// * (12) This Rout Is Used To Block The Specific User
+//
+routes;
+routes.put(
+  "/BlockASpecificUser",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { BlockUserId } = req.body;
+      if (!BlockUserId || BlockUserId === "undefined")
+        return res.status(400).json({
+          success: false,
+          message: "userId is required",
+        });
+      const block_user_initiator = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          blockedUsers: {
+            connect: {
+              id: BlockUserId,
+            },
+          },
+        },
+      });
+      const block_user_receiver = await database.user.update({
+        where: {
+          id: BlockUserId,
+        },
+        data: {
+          blockedBy: {
+            connect: {
+              id: req.user_id,
+            },
+          },
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message: "User blocked successfully",
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while blocking the user",
       });
     }
   }
