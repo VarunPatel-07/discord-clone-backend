@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import redis from "../Redis";
+import RandomColorGenerator from "../Helper/RandomBgColorGenerator";
 
 const slatRound = process.env.SALT_ROUNDS as string;
 
@@ -51,13 +52,15 @@ router.post(
           UserName: UserName as string,
           FullName: FullName as string,
           Profile_Picture: "",
+          ProfileBgColor: RandomColorGenerator(),
+          ProfileBanner_Img_Color: RandomColorGenerator(),
         },
       });
       // now we have added the user to the database now we send the jwt token in return
       const AuthToken = jwt.sign({ user_id: user.id }, Jwt_Secret, {
         expiresIn: "15d",
       });
-      console.log(AuthToken);
+
       const Frontend_URL = process.env.FRONTEND_REDIRECT_URL as string;
       return res
         .cookie("User_Authentication_Token", AuthToken, {

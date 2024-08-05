@@ -2,6 +2,7 @@ import express from "express";
 import {
   Server__Image__Uploader,
   Cloudinary_Cloud_Image_Uploader,
+  Upload_Image_In_Compressed_Format,
 } from "../../middleware/MulterImageUploader";
 import { database } from "../database";
 import { body, validationResult } from "express-validator";
@@ -39,16 +40,16 @@ routes.post(
       if (!result.isEmpty()) {
         return res.status(400).json({ errors: result });
       }
-      const check_server = await database.server.findUnique({
-        where: {
-          name: ServerName,
-        },
-      });
-      if (check_server) {
-        return res
-          .status(400)
-          .json({ message: "Server already exists", success: false });
-      }
+      // const check_server = await database.server.findUnique({
+      //   where: {
+      //     name: ServerName,
+      //   },
+      // });
+      // if (check_server) {
+      //   return res
+      //     .status(400)
+      //     .json({ message: "Server already exists", success: false });
+      // }
       const Group_Admin = await database.user.findUnique({
         where: {
           id: req.user_id,
@@ -58,14 +59,11 @@ routes.post(
       const ServerImageBs64 = Buffer.from(
         imageArr.serverImage[0].buffer
       ).toString("base64");
-      const ServerImageURL =
-        "data:" +
-        imageArr.serverImage[0].mimetype +
-        ";base64," +
-        ServerImageBs64;
 
-      const CloudServerImage = await Cloudinary_Cloud_Image_Uploader(
-        ServerImageURL
+      const CloudServerImage: any = await Upload_Image_In_Compressed_Format(
+        ServerImageBs64,
+        96,
+        96
       );
 
       if (!CloudServerImage) {
@@ -98,7 +96,7 @@ routes.post(
         success: true,
       });
     } catch (error) {
-      // console.log(error);
+      console.log(error);
       return res.status(500).json({
         message: "Internal server error while creating server",
         success: false,
@@ -249,7 +247,6 @@ routes.put(
           members: true,
         },
       });
-      
 
       if (!Find_Server) {
         return res
@@ -318,6 +315,7 @@ routes.put(
         serverId: string;
         ServerName: string;
       };
+
       const multiple_server_info = `multiple_server_info_${req.user_id}`;
       const cache_server_key = `single_server_${serverId}`;
       DeleteSpecificDataInRedis(multiple_server_info);
@@ -340,6 +338,7 @@ routes.put(
           message: "You are not authorized to update this server info",
         });
       }
+
       if (!imageArr.serverImage) {
         const server_info = await database.server.update({
           where: {
@@ -354,14 +353,11 @@ routes.put(
         const ServerImageBs64 = Buffer.from(
           imageArr.serverImage[0].buffer
         ).toString("base64");
-        const ServerImageURL =
-          "data:" +
-          imageArr.serverImage[0].mimetype +
-          ";base64," +
-          ServerImageBs64;
 
-        const CloudServerImage = await Cloudinary_Cloud_Image_Uploader(
-          ServerImageURL
+        const CloudServerImage: any = await Upload_Image_In_Compressed_Format(
+          ServerImageBs64,
+          96,
+          96
         );
 
         if (!CloudServerImage) {

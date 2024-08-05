@@ -4,6 +4,7 @@ import { Strategy as OAuthStrategy } from "passport-google-oauth20";
 
 import { database } from "../database";
 import jwt from "jsonwebtoken";
+import RandomColorGenerator from "../Helper/RandomBgColorGenerator";
 const router = express.Router();
 const Jwt_Secret = process.env.JWT_SECRET_KEY as string;
 
@@ -41,6 +42,8 @@ passport.use(
               Password: profile._json.sub as string,
 
               Profile_Picture: profile._json.picture as string,
+              ProfileBgColor: RandomColorGenerator(),
+              ProfileBanner_Img_Color: RandomColorGenerator(),
             },
           });
 

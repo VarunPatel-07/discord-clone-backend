@@ -907,7 +907,7 @@ routes.put(
           },
         },
       });
-      console.log(block_user_initiator, block_user_receiver);
+
       return res.status(200).json({
         success: true,
         message: "User blocked successfully",
@@ -922,7 +922,7 @@ routes.put(
   }
 );
 //
-// * (12) This Rout Is Used To Block The Specific User
+// * (13) This Rout Is Used To Un Block The Specific User
 //
 routes.put(
   "/UnBlockASpecificUser/:UnBlockUserId",
