@@ -159,12 +159,8 @@ routes.get(
                 id: req.user_id,
               },
             },
+
             followers: {
-              none: {
-                id: req.user_id,
-              },
-            },
-            following: {
               none: {
                 id: req.user_id,
               },
@@ -196,12 +192,8 @@ routes.get(
                 id: req.user_id,
               },
             },
+
             followers: {
-              none: {
-                id: req.user_id,
-              },
-            },
-            following: {
               none: {
                 id: req.user_id,
               },
@@ -369,7 +361,20 @@ routes.get(
           id: req.user_id,
         },
         include: {
-          followers: true,
+          followers: {
+            where: {
+              blockedBy: {
+                none: {
+                  id: req.user_id,
+                },
+              },
+              blockedUsers: {
+                none: {
+                  id: req.user_id,
+                },
+              },
+            },
+          },
         },
       });
       // console.log(user);
@@ -416,9 +421,22 @@ routes.get(
         where: {
           id: req.user_id,
         },
+
         include: {
-          following: true,
-          followers: true,
+          following: {
+            where: {
+              blockedUsers: {
+                none: {
+                  id: req.user_id,
+                },
+              },
+              blockedBy: {
+                none: {
+                  id: req.user_id,
+                },
+              },
+            },
+          },
         },
       });
       // console.log(user);
@@ -844,19 +862,27 @@ routes.put(
 //
 // * (12) This Rout Is Used To Block The Specific User
 //
-routes;
 routes.put(
-  "/BlockASpecificUser",
+  "/BlockASpecificUser/:BlockUserId",
   CheckAuthToken,
   multer().none(),
   async (req: any, res: any) => {
     try {
-      const { BlockUserId } = req.body;
+      console.log(req.params);
+      const { BlockUserId } = req.params;
       if (!BlockUserId || BlockUserId === "undefined")
         return res.status(400).json({
           success: false,
           message: "userId is required",
         });
+      const sender_key_followers = `followersStoredInCache_${BlockUserId}`;
+      const sender_key_following = `followingStoredInCache_${BlockUserId}`;
+      const receiver_key_followers = `followersStoredInCache_${req.user_id}`;
+      const receiver_key_following = `followingStoredInCache_${req.user_id}`;
+      await DeleteSpecificDataInRedis(sender_key_followers);
+      await DeleteSpecificDataInRedis(sender_key_following);
+      await DeleteSpecificDataInRedis(receiver_key_followers);
+      await DeleteSpecificDataInRedis(receiver_key_following);
       const block_user_initiator = await database.user.update({
         where: {
           id: req.user_id,
@@ -881,6 +907,7 @@ routes.put(
           },
         },
       });
+      console.log(block_user_initiator, block_user_receiver);
       return res.status(200).json({
         success: true,
         message: "User blocked successfully",
@@ -894,4 +921,66 @@ routes.put(
     }
   }
 );
+//
+// * (12) This Rout Is Used To Block The Specific User
+//
+routes.put(
+  "/UnBlockASpecificUser/:UnBlockUserId",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { UnBlockUserId } = req.params;
+      if (!UnBlockUserId || UnBlockUserId === "undefined")
+        return res.status(400).json({
+          success: false,
+          message: "userId is required",
+        });
+      const sender_key_followers = `followersStoredInCache_${UnBlockUserId}`;
+      const sender_key_following = `followingStoredInCache_${UnBlockUserId}`;
+      const receiver_key_followers = `followersStoredInCache_${req.user_id}`;
+      const receiver_key_following = `followingStoredInCache_${req.user_id}`;
+      await DeleteSpecificDataInRedis(sender_key_followers);
+      await DeleteSpecificDataInRedis(sender_key_following);
+      await DeleteSpecificDataInRedis(receiver_key_followers);
+      await DeleteSpecificDataInRedis(receiver_key_following);
+      const unblock_user_initiator = await database.user.update({
+        where: {
+          id: req.user_id,
+        },
+        data: {
+          blockedUsers: {
+            disconnect: {
+              id: UnBlockUserId,
+            },
+          },
+        },
+      });
+      const unblock_user_receiver = await database.user.update({
+        where: {
+          id: UnBlockUserId,
+        },
+        data: {
+          blockedBy: {
+            disconnect: {
+              id: req.user_id,
+            },
+          },
+        },
+      });
+      console.log(unblock_user_initiator, unblock_user_receiver);
+      return res.status(200).json({
+        success: true,
+        message: "User unblocked successfully",
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while unblocking the user",
+      });
+    }
+  }
+);
+
 export default routes;

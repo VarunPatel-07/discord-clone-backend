@@ -120,9 +120,17 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitUserUnFollowedAnFollower", data);
   });
   socket.on("AnFollowerHasBeenRemoved", () => {
-   
     socket.broadcast.emit("EmitAnFollowerHasBeenRemoved");
   });
+
+  socket.on("AnUserBlockedSuccessfully", () => {
+    socket.broadcast.emit("EmitAnUserBlockedSuccessfully");
+  });
+  socket.on("AnUser_UnBlocked_Successfully", ()=>{
+    socket.broadcast.emit("EmitAnUser_UnBlocked_Successfully");
+    
+  })
+
   socket.on("disconnect", () => {
     if (token) {
       Handel_User_Online_Status(token as string, false);
