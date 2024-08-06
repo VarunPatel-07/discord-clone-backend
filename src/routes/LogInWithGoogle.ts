@@ -43,7 +43,8 @@ passport.use(
 
               Profile_Picture: profile._json.picture as string,
               ProfileBgColor: RandomColorGenerator(),
-              ProfileBanner_Img_Color: RandomColorGenerator(),
+              ProfileBanner_Img: "",
+              ProfileBanner_Color: RandomColorGenerator(),
             },
           });
 

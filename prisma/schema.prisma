@@ -14,21 +14,23 @@ datasource db {
 }
 
 model User {
-  id                      String    @id @default(uuid())
-  FullName                String    @map("full_name") @db.VarChar(255)
-  Email                   String    @unique @map("email") @db.VarChar(255)
-  UserName                String    @unique @map("username") @db.VarChar(255)
-  Password                String    @map("password") @db.VarChar(255)
-  Is_Online               Boolean   @default(false)
-  Is_Email_Verified       Boolean   @default(false)
-  Profile_Picture         String    @map("profile_picture") @db.VarChar(255)
-  servers                 Server[]
-  members                 Member[]
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  channels                Channel[]
-  ProfileBanner_Img_Color String    @db.VarChar(255)
-  ProfileBgColor          String    @db.VarChar(255)
+  id                  String    @id @default(uuid())
+  FullName            String    @map("full_name") @db.VarChar(255)
+  Email               String    @unique @map("email") @db.VarChar(255)
+  UserName            String    @unique @map("username") @db.VarChar(255)
+  Password            String    @map("password") @db.VarChar(255)
+  Is_Online           Boolean   @default(false)
+  Is_Email_Verified   Boolean   @default(false)
+  Profile_Picture     String    @map("profile_picture") @db.VarChar(255)
+  servers             Server[]
+  members             Member[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  channels            Channel[]
+  ProfileBanner_Img   String    @db.VarChar(255)
+  ProfileBanner_Color String    @db.VarChar(255)
+  ProfileBgColor      String    @db.VarChar(255)
+  TwoFactorAuth       Boolean   @default(false)
 
   notification    Notification[]
   requestsSend    User[]         @relation("UserRequests")
@@ -62,12 +64,15 @@ model Notification {
 }
 
 model Server {
-  id         String @id @default(uuid())
-  name       String @db.VarChar(255)
-  imageUrl   String @db.VarChar(255)
-  inviteCode String @unique @db.VarChar(255)
-  usersId    String @db.VarChar(500)
-  users      User   @relation(fields: [usersId], references: [id], onDelete: Cascade)
+  id                 String  @id @default(uuid())
+  name               String  @db.VarChar(255)
+  imageUrl           String  @db.VarChar(255)
+  inviteCode         String  @unique @db.VarChar(255)
+  usersId            String  @db.VarChar(500)
+  users              User    @relation(fields: [usersId], references: [id], onDelete: Cascade)
+  ServerBannerImg    String  @db.VarChar(255)
+  ServerBannerColor String  @db.VarChar(255)
+  public             Boolean @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

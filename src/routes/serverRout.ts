@@ -15,6 +15,7 @@ import {
   DeleteSpecificDataInRedis,
   StoreDataInRedis,
 } from "../Helper/StorDataInRedis";
+import RandomColorGenerator from "../Helper/RandomBgColorGenerator";
 const routes = express.Router();
 //
 //? CREATE SERVER
@@ -40,16 +41,7 @@ routes.post(
       if (!result.isEmpty()) {
         return res.status(400).json({ errors: result });
       }
-      // const check_server = await database.server.findUnique({
-      //   where: {
-      //     name: ServerName,
-      //   },
-      // });
-      // if (check_server) {
-      //   return res
-      //     .status(400)
-      //     .json({ message: "Server already exists", success: false });
-      // }
+
       const Group_Admin = await database.user.findUnique({
         where: {
           id: req.user_id,
@@ -76,6 +68,9 @@ routes.post(
           imageUrl: CloudServerImage?.secure_url as any,
           inviteCode: uuidv4(),
           usersId: Group_Admin?.id as any,
+          ServerBannerColor: RandomColorGenerator(),
+          ServerBannerImg: "",
+
           channels: {
             create: [{ name: "general", userId: Group_Admin?.id as any }],
           },

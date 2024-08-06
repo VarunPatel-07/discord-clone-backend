@@ -126,10 +126,12 @@ io.on("connection", (socket) => {
   socket.on("AnUserBlockedSuccessfully", () => {
     socket.broadcast.emit("EmitAnUserBlockedSuccessfully");
   });
-  socket.on("AnUser_UnBlocked_Successfully", ()=>{
+  socket.on("AnUser_UnBlocked_Successfully", () => {
     socket.broadcast.emit("EmitAnUser_UnBlocked_Successfully");
-    
-  })
+  });
+  socket.on("UserProfileUpdatedSuccessfully", () => {
+    socket.broadcast.emit("EmitUserProfileUpdatedSuccessfully");
+  });
 
   socket.on("disconnect", () => {
     if (token) {

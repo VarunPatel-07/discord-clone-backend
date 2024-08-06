@@ -17,6 +17,7 @@ const Allowed_Formate = (req: any, file: any, cb: any) => {
     "image/jpeg",
     "image/png",
     "image/gif",
+    "image/webp", // Added WebP format
     "application/pdf",
     "text/csv",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -34,6 +35,18 @@ export const Server__Image__Uploader = multer({
 }).fields([
   {
     name: "serverImage",
+    maxCount: 1,
+  },
+]);
+export const Profile_Picture_Uploader = multer({
+  fileFilter: Allowed_Formate,
+}).fields([
+  {
+    name: "profilePicture",
+    maxCount: 1,
+  },
+  {
+    name: "ProfileBannerImage",
     maxCount: 1,
   },
 ]);
@@ -91,4 +104,5 @@ module.exports = {
   Cloudinary_Cloud_Image_Uploader,
   Server__Image__Uploader,
   Upload_Image_In_Compressed_Format,
+  Profile_Picture_Uploader,
 };
