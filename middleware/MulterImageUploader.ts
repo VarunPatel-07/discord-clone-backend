@@ -69,14 +69,25 @@ export const Upload_Image_In_Compressed_Format = async (
 ) => {
   try {
     const buffer = Buffer.from(base64Image, "base64");
-    const compressedImage = await sharp(buffer)
-      .resize({
-        width: width,
-        height: height,
-      })
-      .webp()
-      .toBuffer();
 
+    // Detect image format
+    const imageMetadata = await sharp(buffer).metadata();
+
+    const format = imageMetadata.format;
+
+    // Check if image is in GIF format
+    let processedImage;
+    if (format === "gif") {
+      processedImage = buffer; // Keep the original GIF format
+    } else {
+      // Resize and convert to WebP
+      processedImage = await sharp(buffer)
+        .resize({ width, height })
+        .webp()
+        .toBuffer();
+    }
+
+    // Function to upload image from buffer
     const uploadFromBuffer = (buffer: Buffer) => {
       return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
@@ -93,10 +104,11 @@ export const Upload_Image_In_Compressed_Format = async (
       });
     };
 
-    const response = await uploadFromBuffer(compressedImage);
+    // Upload processed image
+    const response = await uploadFromBuffer(processedImage);
     return response;
   } catch (error) {
-    console.log("Error while compressing image", error);
+    console.log("Error while processing image", error);
   }
 };
 

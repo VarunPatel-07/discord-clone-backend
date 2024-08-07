@@ -69,10 +69,6 @@ const io = new SocketIOServer(server, {
 
 io.on("connection", (socket) => {
   // console.log("a user connected", socket.id);
-  socket.on("initialize", (UserData) => {
-    socket.join(UserData._id);
-    // socket.emit("connected");
-  });
 
   const token = socket.handshake.auth.token;
   if (token) {
@@ -84,8 +80,9 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitNewServerCreated", data);
   });
 
-  socket.on("NewMemberJoinedUsingInvitationCode", (data) => {
-    socket.broadcast.emit("EmitNewMemberJoinedUsingInvitationCode", data);
+  socket.on("New_UserJoined_The_Server", (data) => {
+    console.log("New_UserJoined_The_Server", data);
+    socket.broadcast.emit("EmitNew_UserJoined_The_Server");
   });
 
   socket.on("ServerInfoUpdated", () => {
@@ -139,10 +136,5 @@ io.on("connection", (socket) => {
       socket.broadcast.emit("EmitUserStatusChanged");
     }
     // console.log("user disconnected");
-  });
-
-  socket.off("initialize", (UserData) => {
-    console.log("USER DISCONNECTED");
-    socket.leave(UserData._id);
   });
 });

@@ -227,6 +227,14 @@ routes.put(
     try {
       const { inviteCode } = req.body as { inviteCode: string };
       const multiple_server_info = `multiple_server_info_${req.user_id}`;
+      const user = await database.user.findUnique({
+        where: {
+          id: req.user_id,
+        },
+        include: {
+          servers: true,
+        },
+      });
       DeleteSpecificDataInRedis(multiple_server_info);
       if (!inviteCode) {
         return res
@@ -284,6 +292,13 @@ routes.put(
         success: true,
         allReadyInServer: false,
         Server_Id: Find_Server.id,
+        UserInfo: {
+          userId: req.user_id,
+          FullName: user?.FullName,
+          UserName: user?.UserName,
+          Profile_Picture: user?.Profile_Picture,
+          ProfileBgColor: user?.ProfileBgColor,
+        },
       });
     } catch (error) {
       console.log(error);
