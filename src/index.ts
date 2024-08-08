@@ -14,6 +14,7 @@ import Follow from "./routes/Follow";
 import session from "express-session";
 import redis from "./Redis";
 import cookieParser from "cookie-parser";
+import Message from "./routes/Messages";
 
 app.use(
   cors({
@@ -48,10 +49,13 @@ app.use(
 app.use("/app/api/auth", auth);
 app.use("/app/api/server", serverRout);
 app.use("/app/api/follow", Follow);
+app.use("/app/api/Messages", Message);
 // Passport.js initialization to use Google authentication
 app.use(passport.initialize());
 app.use(passport.session());
 app.use("/app/api/googleAuth", LogInWithGoogle);
+
+// Now We Are Creating API For The One O  One Message Or Group Message
 
 //
 
@@ -98,7 +102,7 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitServerHasBeenDeleted", data);
   });
 
-  socket.on("NewChannelHasBeenCreated", () => {
+  socket.on("NewChannelHasBeenCreated", (data) => {
     socket.broadcast.emit("EmitNewChannelHasBeenCreated");
   });
   socket.on("NewFollowRequestHasBeenSent", (data) => {
