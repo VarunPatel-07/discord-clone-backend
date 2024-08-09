@@ -68,7 +68,7 @@ routes.post(
   async (req: any, res: any) => {
     try {
       const { server_id, channel_id, content } = req.body;
-      console.log(req.body);
+
       const FindServer = await database.server.findUnique({
         where: {
           id: server_id,
@@ -121,7 +121,7 @@ routes.post(
           channel: true,
         },
       });
-      console.log(CreateChat);
+
       return res.status(200).json({
         success: true,
         message: "Message sent successfully",
@@ -136,13 +136,13 @@ routes.post(
     }
   }
 );
+// * (3) creating a route for Fetching Messages Of The Channel
 routes.get(
   "/FetchingMessagesOfChannel",
   CheckAuthToken,
   multer().none(),
   async (req: any, res: any) => {
     try {
-      console.log(req.query);
       if (!req.query.server_id || !req.query.channel_id) return;
       const { server_id, channel_id } = req.query;
 
@@ -167,11 +167,14 @@ routes.get(
         },
       });
       if (!FindChannel) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           message: "Channel not found",
         });
       }
+
+      const Page = parseInt(req.query.page as string) || 1;
+      const Limit = parseInt(req.query.limit as string) || 10;
 
       const Messages = await database.groupMessage.findMany({
         where: {
@@ -185,18 +188,179 @@ routes.get(
           },
           channel: true,
         },
+        orderBy: {
+          createdAt: "asc",
+        },
+        skip: (Page - 1) * Limit,
+        take: Limit,
       });
+
+      const TotalMessages = await database.groupMessage.count({
+        where: {
+          channelId: FindChannel?.id,
+        },
+      });
+
+      const TotalPages = Math.ceil(TotalMessages / Limit);
+      const hasMoreData = Page < TotalPages;
 
       return res.status(200).json({
         success: true,
         message: "Messages fetched successfully",
-        Data: Messages,
+        Data: {
+          messages: Messages,
+          totalPages: TotalPages,
+          hasMoreData: hasMoreData,
+        },
       });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error while creating group chat",
+        message: "Internal server error while fetching messages",
+      });
+    }
+  }
+);
+// * (4) creating a route for Editing Message
+routes.put(
+  "/EditMessage",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { message_id } = req.query;
+      console.log(message_id);
+      const { message } = req.body;
+      if (!message_id || !message) return;
+      const FindMessage = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+      });
+      if (!FindMessage) {
+        return res.status(404).json({
+          success: false,
+          message: "Message not found",
+        });
+      }
+      const UpdateMessage = await database.groupMessage.update({
+        where: {
+          id: message_id,
+        },
+        data: {
+          content: message,
+          IsEdited: true,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Message updated successfully",
+        data: UpdateMessage,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while editing message",
+      });
+    }
+  }
+);
+// * (5) creating a route for Deleting Message
+routes.put(
+  "/DeleteMessage",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { message_id } = req.query;
+      const { content } = req.body;
+      if (!message_id) return;
+      const FindMessage = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+        },
+      });
+      if (!FindMessage) {
+        return res.status(404).json({
+          success: false,
+          message: "Message not found",
+        });
+      }
+      if (FindMessage?.member?.user?.id === req.user_id) {
+        const DeleteMessage = await database.groupMessage.update({
+          where: {
+            id: message_id,
+          },
+          data: {
+            IsDeleted: true,
+            DeletedBy: req.user_id,
+            content: "this message has been deleted",
+          },
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            channel: true,
+          },
+        });
+        return res.status(200).json({
+          success: true,
+          message: "Message deleted successfully",
+          data: DeleteMessage,
+        });
+      } else {
+        if (FindMessage?.channel?.userId === req.user_id) {
+          const DeleteMessage = await database.groupMessage.update({
+            where: {
+              id: message_id,
+            },
+            data: {
+              IsDeleted: true,
+              DeletedBy: req.user_id,
+              content: "this message has been deleted by admin",
+            },
+            include: {
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+              channel: true,
+            },
+          });
+          return res.status(200).json({
+            success: true,
+            message: "Message deleted successfully",
+            data: DeleteMessage,
+          });
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while deleting message",
       });
     }
   }

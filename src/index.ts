@@ -124,11 +124,20 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitAnFollowerHasBeenRemoved");
   });
 
+  socket.on("NewMessageHasBeenSent", (data) => {
+    // console.log("NewMessageHasBeenSent", data);
+    socket.broadcast.emit("EmitNewMessageHasBeenSent", data);
+  });
+
   socket.on("AnUserBlockedSuccessfully", () => {
     socket.broadcast.emit("EmitAnUserBlockedSuccessfully");
   });
   socket.on("AnUser_UnBlocked_Successfully", () => {
     socket.broadcast.emit("EmitAnUser_UnBlocked_Successfully");
+  });
+  socket.on("MessageHasBeenEditedSuccessfully", (data) => {
+    console.log("MessageHasBeenEditedSuccessfully", data);
+    socket.broadcast.emit("EmitMessageHasBeenEditedSuccessfully", data);
   });
   socket.on("UserProfileUpdatedSuccessfully", () => {
     socket.broadcast.emit("EmitUserProfileUpdatedSuccessfully");
