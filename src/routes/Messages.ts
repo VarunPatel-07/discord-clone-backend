@@ -2,6 +2,8 @@ import express from "express";
 import { database } from "../database";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
+import { body, validationResult } from "express-validator";
+import { connect } from "http2";
 const routes = express.Router();
 
 // * (1) creating a route for creating one to one chat
@@ -108,9 +110,9 @@ routes.post(
       const CreateChat = await database.groupMessage.create({
         data: {
           content,
-          FileURL: "",
-          memberId: Member.id, // provide a value for the member property
-          channelId: FindChannel?.id as any,
+          FileURL: "", // Assuming no file is attached
+          memberId: Member.id, // Member ID should be valid
+          channelId: FindChannel?.id || "", // Ensure channel ID is a valid string
         },
         include: {
           member: {
@@ -119,9 +121,10 @@ routes.post(
             },
           },
           channel: true,
+          ServerGroupMessageReplies: true,
         },
       });
-
+      console.log(CreateChat);
       return res.status(200).json({
         success: true,
         message: "Message sent successfully",
@@ -187,6 +190,7 @@ routes.get(
             },
           },
           channel: true,
+          ServerGroupMessageReplies: true,
         },
         orderBy: {
           createdAt: "asc",
@@ -361,6 +365,141 @@ routes.put(
       return res.status(500).json({
         success: false,
         message: "Internal server error while deleting message",
+      });
+    }
+  }
+);
+// * (6) creating a route for Replying Message
+routes.put(
+  "/ReplayMessage",
+  CheckAuthToken,
+  multer().none(),
+  [
+    body("server_id").exists().withMessage("server_id is required"),
+    body("channel_id").exists().withMessage("channel_id is required"),
+    body("content").exists().withMessage("content is required"),
+    body("message_id").exists().withMessage("message_id is required"),
+  ],
+  async (req: any, res: any) => {
+    try {
+      const {
+        server_id,
+        channel_id,
+        content,
+
+        message_id,
+      } = req.body;
+
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
+      const FindServer = await database.server.findUnique({
+        where: {
+          id: server_id,
+        },
+        include: {
+          members: true,
+        },
+      });
+
+      if (!FindServer) {
+        return res.status(404).json({
+          success: false,
+          message: "Server not found",
+        });
+      }
+      const FindChannel = await database.channel.findUnique({
+        where: {
+          id: channel_id,
+          serverId: server_id,
+        },
+      });
+      if (!FindChannel) {
+        res.status(404).json({
+          success: false,
+          message: "Channel not found",
+        });
+      }
+      const Member = FindServer.members.find(
+        (member: any) => member.userId === req.user_id
+      );
+      if (!Member) {
+        return res.status(404).json({
+          success: false,
+          message: "Member not found",
+        });
+      }
+      const user = await database.user.findUnique({
+        where: {
+          id: req.user_id,
+        },
+      });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+      const Find_Message = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+      if (!Find_Message) {
+        return res.status(404).json({
+          success: false,
+          message: "Message not found",
+        });
+      }
+      await database.serverGroupMessageReplies.create({
+        data: {
+          ChannelId: FindChannel?.id as string,
+          FullName: user?.FullName as string,
+          MessageId: message_id,
+          Message: content,
+          Profile_Picture: user?.Profile_Picture,
+          UserId: user?.id,
+          UserName: user?.UserName,
+          ReplyingUser_UserName: Find_Message?.member?.user?.UserName,
+        },
+      });
+
+      const CreateChat = await database.groupMessage.update({
+        where: {
+          id: message_id,
+        },
+        data: {
+          Is_Reply: true,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+          ServerGroupMessageReplies: true,
+        },
+      });
+      console.log(CreateChat);
+      return res.status(200).json({
+        success: true,
+        message: "Message sent successfully",
+        data: CreateChat,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while creating group chat",
       });
     }
   }
