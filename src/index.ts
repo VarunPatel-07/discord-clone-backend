@@ -140,6 +140,19 @@ io.on("connection", (socket) => {
   socket.on("UserProfileUpdatedSuccessfully", () => {
     socket.broadcast.emit("EmitUserProfileUpdatedSuccessfully");
   });
+  //
+  // ? write code here for the video call and the voice call
+  //
+  const EmailToSocketMap = new Map();
+  const SocketToEmailMap = new Map();
+  socket.on("StartTheCallAndJoinRoom", (data) => {
+    console.log("StartTheCallAndJoinRoom", data);
+    EmailToSocketMap.set(data?.userInfo?.Email, socket.id);
+    SocketToEmailMap.set(socket.id, data?.userInfo?.Email);
+    io.to(data?.RoomId).emit("NewUserJoinedTheCall", data);
+    socket.join(data?.RoomId);
+    io.to(socket.id).emit("StartTheCallAndJoinRoom", data);
+  });
 
   socket.on("disconnect", () => {
     if (token) {
