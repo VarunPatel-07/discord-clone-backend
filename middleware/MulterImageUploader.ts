@@ -58,7 +58,7 @@ export const Cloudinary_Cloud_Image_Uploader = async (file: any) => {
     });
     return response;
   } catch (error) {
-    // console.log(error);
+    // // console.log(error);
   }
 };
 
@@ -108,7 +108,7 @@ export const Upload_Image_In_Compressed_Format = async (
     const response = await uploadFromBuffer(processedImage);
     return response;
   } catch (error) {
-    console.log("Error while processing image", error);
+    // console.log("Error while processing image", error);
   }
 };
 

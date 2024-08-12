@@ -32,7 +32,7 @@ redis.on("connect", () => {
   console.log("connected to redis 📶 🥳");
 });
 redis.on("error", (err) => {
-  console.log(err);
+  // console.log(err);
 });
 
 // ? using express-session to Create a session For the User Login/Signup With Google Or Other Providers
@@ -85,7 +85,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("New_UserJoined_The_Server", (data) => {
-    console.log("New_UserJoined_The_Server", data);
+    // console.log("New_UserJoined_The_Server", data);
     socket.broadcast.emit("EmitNew_UserJoined_The_Server");
   });
 
@@ -98,7 +98,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ServerHasBeenDeleted", (data) => {
-    console.log("ServerHasBeenDeleted", data);
+    // console.log("ServerHasBeenDeleted", data);
     socket.broadcast.emit("EmitServerHasBeenDeleted", data);
   });
 
@@ -125,7 +125,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("NewMessageHasBeenSent", (data) => {
-    // console.log("NewMessageHasBeenSent", data);
     socket.broadcast.emit("EmitNewMessageHasBeenSent", data);
   });
 
@@ -136,7 +135,6 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitAnUser_UnBlocked_Successfully");
   });
   socket.on("MessageHasBeenEditedSuccessfully", (data) => {
-    console.log("MessageHasBeenEditedSuccessfully", data);
     socket.broadcast.emit("EmitMessageHasBeenEditedSuccessfully", data);
   });
   socket.on("UserProfileUpdatedSuccessfully", () => {
@@ -148,6 +146,6 @@ io.on("connection", (socket) => {
       Handel_User_Online_Status(token as string, false);
       socket.broadcast.emit("EmitUserStatusChanged");
     }
-    // console.log("user disconnected");
+    // // console.log("user disconnected");
   });
 });

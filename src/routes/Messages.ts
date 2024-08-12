@@ -54,7 +54,7 @@ routes.post(
         data: CreateChat,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating one to one chat",
@@ -120,18 +120,26 @@ routes.post(
               user: true,
             },
           },
-          channel: true,
+          channel: {
+            include: {
+              server: {
+                include: {
+                  members: true,
+                },
+              },
+            },
+          },
           ServerGroupMessageReplies: true,
         },
       });
-      console.log(CreateChat);
+      // console.log(CreateChat);
       return res.status(200).json({
         success: true,
         message: "Message sent successfully",
         data: CreateChat,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",
@@ -190,7 +198,11 @@ routes.get(
             },
           },
           channel: true,
-          ServerGroupMessageReplies: true,
+          ServerGroupMessageReplies: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
         orderBy: {
           createdAt: "asc",
@@ -218,7 +230,7 @@ routes.get(
         },
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching messages",
@@ -234,7 +246,7 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { message_id } = req.query;
-      console.log(message_id);
+      // console.log(message_id);
       const { message } = req.body;
       if (!message_id || !message) return;
       const FindMessage = await database.groupMessage.findUnique({
@@ -272,7 +284,7 @@ routes.put(
         data: UpdateMessage,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while editing message",
@@ -361,7 +373,7 @@ routes.put(
         }
       }
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while deleting message",
@@ -379,6 +391,9 @@ routes.put(
     body("channel_id").exists().withMessage("channel_id is required"),
     body("content").exists().withMessage("content is required"),
     body("message_id").exists().withMessage("message_id is required"),
+    body("Replying_To_UserName")
+      .exists()
+      .withMessage("Replying_To_UserName is required"),
   ],
   async (req: any, res: any) => {
     try {
@@ -388,6 +403,7 @@ routes.put(
         content,
 
         message_id,
+        Replying_To_UserName,
       } = req.body;
 
       const result = validationResult(req);
@@ -468,7 +484,7 @@ routes.put(
           Profile_Picture: user?.Profile_Picture,
           UserId: user?.id,
           UserName: user?.UserName,
-          ReplyingUser_UserName: Find_Message?.member?.user?.UserName,
+          ReplyingUser_UserName: Replying_To_UserName,
         },
       });
 
@@ -486,17 +502,175 @@ routes.put(
             },
           },
           channel: true,
-          ServerGroupMessageReplies: true,
+          ServerGroupMessageReplies: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       });
-      console.log(CreateChat);
+
       return res.status(200).json({
         success: true,
         message: "Message sent successfully",
         data: CreateChat,
       });
     } catch (error) {
-      console.log(error);
+      // console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while creating group chat",
+      });
+    }
+  }
+);
+// * (7) Delete Message Reply
+routes.put(
+  "/DeleteMessageReply",
+  CheckAuthToken,
+  multer().none(),
+  async (req: any, res: any) => {
+    try {
+      const { message_id, message_replay_id } = req.query;
+
+      if (!message_id || !message_replay_id) return;
+      const FindMessage = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+        },
+      });
+
+      if (FindMessage?.member?.user?.id === req.user_id) {
+        await database.serverGroupMessageReplies.update({
+          where: {
+            id: message_replay_id,
+          },
+          data: {
+            Is_Deleted: true,
+            Message: "This message has been deleted ",
+          },
+        });
+      } else {
+        if (FindMessage?.channel?.userId === req.user_id) {
+          await database.serverGroupMessageReplies.update({
+            where: {
+              id: message_replay_id,
+            },
+            data: {
+              Is_Deleted: true,
+              Message: "This message has been deleted by the admin  ",
+            },
+          });
+        }
+      }
+      const Message = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+          ServerGroupMessageReplies: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message: "Message deleted successfully",
+        data: Message,
+      });
+    } catch (error) {
+      // console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while creating group chat",
+      });
+    }
+  }
+);
+// * (8) Editing message reply
+routes.put(
+  "/EditMessageReply",
+  CheckAuthToken,
+  multer().none(),
+  [body("content").exists().withMessage("content is required")],
+  async (req: any, res: any) => {
+    try {
+      const { message_id, message_replay_id } = req.query;
+      const { content } = req.body;
+      console.log(req.body);
+      const Find_Message = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+        },
+      });
+
+      if (!Find_Message) {
+        return res.status(404).json({
+          success: false,
+          message: "Message not found",
+        });
+      }
+      if (Find_Message?.member?.user?.id === req.user_id) {
+        await database.serverGroupMessageReplies.update({
+          where: {
+            id: message_replay_id,
+          },
+          data: {
+            Message: content,
+            Is_Edited: true,
+          },
+        });
+      }
+      const Message = await database.groupMessage.findUnique({
+        where: {
+          id: message_id,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: true,
+          ServerGroupMessageReplies: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+      console.log(Message);
+      return res.status(200).json({
+        success: true,
+        message: "Message deleted successfully",
+        data: Message,
+      });
+    } catch (error) {
+      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",
