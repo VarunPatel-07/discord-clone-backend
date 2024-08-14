@@ -15,7 +15,7 @@ import session from "express-session";
 import redis from "./Redis";
 import cookieParser from "cookie-parser";
 import Message from "./routes/Messages";
-
+import VideoCall from "./routes/VideoCall";
 app.use(
   cors({
     origin: true, // Update with your frontend URL
@@ -50,6 +50,8 @@ app.use("/app/api/auth", auth);
 app.use("/app/api/server", serverRout);
 app.use("/app/api/follow", Follow);
 app.use("/app/api/Messages", Message);
+app.use("/app/api/VideoCall", VideoCall);
+
 // Passport.js initialization to use Google authentication
 app.use(passport.initialize());
 app.use(passport.session());
@@ -143,16 +145,6 @@ io.on("connection", (socket) => {
   //
   // ? write code here for the video call and the voice call
   //
-  const EmailToSocketMap = new Map();
-  const SocketToEmailMap = new Map();
-  socket.on("StartTheCallAndJoinRoom", (data) => {
-    console.log("StartTheCallAndJoinRoom", data);
-    EmailToSocketMap.set(data?.userInfo?.Email, socket.id);
-    SocketToEmailMap.set(socket.id, data?.userInfo?.Email);
-    io.to(data?.RoomId).emit("NewUserJoinedTheCall", data);
-    socket.join(data?.RoomId);
-    io.to(socket.id).emit("StartTheCallAndJoinRoom", data);
-  });
 
   socket.on("disconnect", () => {
     if (token) {

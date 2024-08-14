@@ -1,0 +1,37 @@
+import express from "express";
+import jwt from "jsonwebtoken";
+import CheckAuthToken from "../../middleware/CheckAuthToken";
+const routes = express.Router();
+routes.post(
+  "/generateTokenForCall",
+  CheckAuthToken,
+  async (req: any, res: any) => {
+    try {
+      const { channel_id } = req.body;
+
+      const API_KEY = process.env
+        .VIDEO_SDK_API_KEY_FOR_VIDEO_AUDIO_CALL as string;
+      const SECRET = process.env
+        .VIDEO_SDK_API_SECRET_KEY_FOR_VIDEO_AUDIO_CALL as string;
+
+      const Payload = {
+        apikey: API_KEY, //MANDATORY
+        permissions: [`allow_join`], //`ask_join` || `allow_mod` //MANDATORY
+        version: 2, //OPTIONAL
+        roomId: channel_id, //OPTIONAL,
+        participantId: req.user_id, //OPTIONAL
+        roles: ["crawler", "rtc"], //OPTIONAL
+      };
+      const options = {
+        expiresIn: "120m",
+        algorithm: "HS256",
+      };
+      const token = jwt.sign(Payload as any, SECRET as any, options as any);
+
+      return res.status(200).json({ success: true, token: token });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: "error" });
+    }
+  }
+);
+export default routes;
