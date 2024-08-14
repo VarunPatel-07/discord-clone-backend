@@ -7,7 +7,7 @@ routes.post(
   CheckAuthToken,
   async (req: any, res: any) => {
     try {
-      const { channel_id } = req.body;
+   
 
       const API_KEY = process.env
         .VIDEO_SDK_API_KEY_FOR_VIDEO_AUDIO_CALL as string;
@@ -17,10 +17,7 @@ routes.post(
       const Payload = {
         apikey: API_KEY, //MANDATORY
         permissions: [`allow_join`], //`ask_join` || `allow_mod` //MANDATORY
-        version: 2, //OPTIONAL
-        roomId: channel_id, //OPTIONAL,
-        participantId: req.user_id, //OPTIONAL
-        roles: ["crawler", "rtc"], //OPTIONAL
+        
       };
       const options = {
         expiresIn: "120m",
