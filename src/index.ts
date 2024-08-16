@@ -142,6 +142,12 @@ io.on("connection", (socket) => {
   socket.on("UserProfileUpdatedSuccessfully", () => {
     socket.broadcast.emit("EmitUserProfileUpdatedSuccessfully");
   });
+
+  socket.on("SendMeetingIdToTheMemberOfTheServer", (data) => {
+    
+    socket.broadcast.emit("EmitSendMeetingIdToTheMemberOfTheServer", data);
+  });
+
   //
   // ? write code here for the video call and the voice call
   //

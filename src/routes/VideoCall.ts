@@ -2,13 +2,11 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 const routes = express.Router();
-routes.post(
+routes.get(
   "/generateTokenForCall",
   CheckAuthToken,
   async (req: any, res: any) => {
     try {
-   
-
       const API_KEY = process.env
         .VIDEO_SDK_API_KEY_FOR_VIDEO_AUDIO_CALL as string;
       const SECRET = process.env
@@ -17,7 +15,6 @@ routes.post(
       const Payload = {
         apikey: API_KEY, //MANDATORY
         permissions: [`allow_join`], //`ask_join` || `allow_mod` //MANDATORY
-        
       };
       const options = {
         expiresIn: "120m",
