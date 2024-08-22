@@ -14,7 +14,7 @@ routes.get(
 
       const Payload = {
         apikey: API_KEY, //MANDATORY
-        permissions: [`allow_join`], //`ask_join` || `allow_mod` //MANDATORY
+        permissions: [`allow_join`, `allow_mod`], //`ask_join` || `allow_mod` //MANDATORY
       };
       const options = {
         expiresIn: "120m",

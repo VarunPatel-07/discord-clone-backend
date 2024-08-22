@@ -144,7 +144,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("SendMeetingIdToTheMemberOfTheServer", (data) => {
-    
     socket.broadcast.emit("EmitSendMeetingIdToTheMemberOfTheServer", data);
   });
 

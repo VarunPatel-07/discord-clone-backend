@@ -446,7 +446,7 @@ routes.put(
           message: "You are not authorized to update this server info",
         });
       }
-      if (CurrentMemberRole == "GUEST") {
+      if (CurrentMemberRole === "GUEST") {
         const updated_info = await database.member.update({
           where: {
             id: memberId,
