@@ -3,7 +3,12 @@ import { database } from "../database";
 import multer from "multer";
 import CheckAuthToken from "../../middleware/CheckAuthToken";
 import { body, validationResult } from "express-validator";
-import { connect } from "http2";
+import CryptoJS from "crypto-js";
+import redis from "../Redis";
+import { StoreDataInRedis } from "../Helper/StorDataInRedis";
+
+const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
+
 const routes = express.Router();
 
 // * (1) creating a route for creating one to one chat
@@ -54,7 +59,7 @@ routes.post(
         data: CreateChat,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating one to one chat",
@@ -67,9 +72,23 @@ routes.post(
   "/sendMessageInTheSelectedChannel",
   CheckAuthToken,
   multer().none(),
+  [
+    body("content").exists().withMessage("content is required"),
+    body("server_id").exists().withMessage("server_id is required"),
+    body("channel_id").exists().withMessage("channel_id is required"),
+  ],
   async (req: any, res: any) => {
     try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
       const { server_id, channel_id, content } = req.body;
+      const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
 
       const FindServer = await database.server.findUnique({
         where: {
@@ -86,30 +105,41 @@ routes.post(
           message: "Server not found",
         });
       }
+
       const FindChannel = await database.channel.findUnique({
         where: {
           id: channel_id,
           serverId: server_id,
         },
       });
+
       if (!FindChannel) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           message: "Channel not found",
         });
       }
+
       const Member = FindServer.members.find(
         (member: any) => member.userId === req.user_id
       );
+
       if (!Member) {
         return res.status(404).json({
           success: false,
           message: "Member not found",
         });
       }
+
+      // Encrypt the content before saving
+      const encryptedContent = CryptoJS.AES.encrypt(
+        content,
+        SECRET_KEY
+      ).toString();
+
       const CreateChat = await database.groupMessage.create({
         data: {
-          content,
+          content: encryptedContent, // Store encrypted content
           FileURL: "", // Assuming no file is attached
           memberId: Member.id, // Member ID should be valid
           channelId: FindChannel?.id || "", // Ensure channel ID is a valid string
@@ -132,14 +162,15 @@ routes.post(
           ServerGroupMessageReplies: true,
         },
       });
-      // console.log(CreateChat);
+
+      // Decrypt the content for the response
+
       return res.status(200).json({
         success: true,
         message: "Message sent successfully",
         data: CreateChat,
       });
     } catch (error) {
-      // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",
@@ -154,8 +185,25 @@ routes.get(
   multer().none(),
   async (req: any, res: any) => {
     try {
-      if (!req.query.server_id || !req.query.channel_id) return;
+      if (!req.query.server_id || !req.query.channel_id) {
+        return res.status(400).json({
+          success: false,
+          message: "server_id and channel_id are required",
+        });
+      }
+      const Page = parseInt(req.query.page as string) || 1;
+      const Limit = parseInt(req.query.limit as string) || 10;
       const { server_id, channel_id } = req.query;
+
+      const Cache_Key = `ChannelMessages:${server_id}:${channel_id}:page-${Page}`;
+      const getCacheData = await redis.get(Cache_Key);
+      if (getCacheData) {
+        return res.status(200).json({
+          success: true,
+          message: "Messages fetched successfully from cache",
+          Data: JSON.parse(getCacheData),
+        });
+      }
 
       const FindServer = await database.server.findUnique({
         where: {
@@ -183,9 +231,6 @@ routes.get(
           message: "Channel not found",
         });
       }
-
-      const Page = parseInt(req.query.page as string) || 1;
-      const Limit = parseInt(req.query.limit as string) || 10;
 
       const Messages = await database.groupMessage.findMany({
         where: {
@@ -219,18 +264,19 @@ routes.get(
 
       const TotalPages = Math.ceil(TotalMessages / Limit);
       const hasMoreData = Page < TotalPages;
-
+      const CacheData = {
+        messages: Messages,
+        totalPages: TotalPages,
+        hasMoreData: hasMoreData,
+      };
+      StoreDataInRedis(Cache_Key, CacheData);
       return res.status(200).json({
         success: true,
         message: "Messages fetched successfully",
-        Data: {
-          messages: Messages,
-          totalPages: TotalPages,
-          hasMoreData: hasMoreData,
-        },
+        Data: CacheData,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching messages",
@@ -246,26 +292,46 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { message_id } = req.query;
-      // console.log(message_id);
+      // // console.log(message_id);
       const { message } = req.body;
       if (!message_id || !message) return;
       const FindMessage = await database.groupMessage.findUnique({
         where: {
           id: message_id,
         },
+        include: {
+          channel: {
+            include: {
+              server: true,
+            },
+          },
+        },
       });
+
       if (!FindMessage) {
         return res.status(404).json({
           success: false,
           message: "Message not found",
         });
       }
+
+      const encryptedContent = CryptoJS.AES.encrypt(
+        message,
+        SECRET_KEY
+      ).toString();
+
+      const MatchTheCacheKey = `ChannelMessages:${FindMessage?.channel?.server?.id}:${FindMessage?.channel?.id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+
       const UpdateMessage = await database.groupMessage.update({
         where: {
           id: message_id,
         },
         data: {
-          content: message,
+          content: encryptedContent,
           IsEdited: true,
         },
         include: {
@@ -284,7 +350,7 @@ routes.put(
         data: UpdateMessage,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while editing message",
@@ -300,7 +366,6 @@ routes.put(
   async (req: any, res: any) => {
     try {
       const { message_id } = req.query;
-      const { content } = req.body;
       if (!message_id) return;
       const FindMessage = await database.groupMessage.findUnique({
         where: {
@@ -312,7 +377,11 @@ routes.put(
               user: true,
             },
           },
-          channel: true,
+          channel: {
+            include: {
+              server: true,
+            },
+          },
         },
       });
       if (!FindMessage) {
@@ -320,6 +389,11 @@ routes.put(
           success: false,
           message: "Message not found",
         });
+      }
+      const MatchTheCacheKey = `ChannelMessages:${FindMessage?.channel?.server?.id}:${FindMessage?.channel?.id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
       }
       if (FindMessage?.member?.user?.id === req.user_id) {
         const DeleteMessage = await database.groupMessage.update({
@@ -338,6 +412,11 @@ routes.put(
               },
             },
             channel: true,
+            ServerGroupMessageReplies: {
+              orderBy: {
+                createdAt: "asc",
+              },
+            },
           },
         });
         return res.status(200).json({
@@ -363,6 +442,11 @@ routes.put(
                 },
               },
               channel: true,
+              ServerGroupMessageReplies: {
+                orderBy: {
+                  createdAt: "asc",
+                },
+              },
             },
           });
           return res.status(200).json({
@@ -373,7 +457,7 @@ routes.put(
         }
       }
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while deleting message",
@@ -425,6 +509,13 @@ routes.put(
           message: "Server not found",
         });
       }
+
+      const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+
       const FindChannel = await database.channel.findUnique({
         where: {
           id: channel_id,
@@ -457,6 +548,10 @@ routes.put(
           message: "User not found",
         });
       }
+      const encryptedMessage_replay = CryptoJS.AES.encrypt(
+        content,
+        SECRET_KEY
+      ).toString();
       const Find_Message = await database.groupMessage.findUnique({
         where: {
           id: message_id,
@@ -480,7 +575,7 @@ routes.put(
           ChannelId: FindChannel?.id as string,
           FullName: user?.FullName as string,
           MessageId: message_id,
-          Message: content,
+          Message: encryptedMessage_replay,
           Profile_Picture: user?.Profile_Picture,
           UserId: user?.id,
           UserName: user?.UserName,
@@ -516,7 +611,7 @@ routes.put(
         data: CreateChat,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",
@@ -544,10 +639,18 @@ routes.put(
               user: true,
             },
           },
-          channel: true,
+          channel: {
+            include: {
+              server: true,
+            },
+          },
         },
       });
-
+      const MatchTheCacheKey = `ChannelMessages:${FindMessage?.channel?.server?.id}:${FindMessage?.channel?.id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
       if (FindMessage?.member?.user?.id === req.user_id) {
         await database.serverGroupMessageReplies.update({
           where: {
@@ -595,7 +698,7 @@ routes.put(
         data: Message,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",
@@ -613,7 +716,7 @@ routes.put(
     try {
       const { message_id, message_replay_id } = req.query;
       const { content } = req.body;
-      console.log(req.body);
+      // console.log(req.body);
       const Find_Message = await database.groupMessage.findUnique({
         where: {
           id: message_id,
@@ -624,7 +727,11 @@ routes.put(
               user: true,
             },
           },
-          channel: true,
+          channel: {
+            include: {
+              server: true,
+            },
+          },
         },
       });
 
@@ -634,13 +741,24 @@ routes.put(
           message: "Message not found",
         });
       }
+
+      const MatchTheCacheKey = `ChannelMessages:${Find_Message?.channel?.server?.id}:${Find_Message?.channel?.id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+      const encryptedMessage = CryptoJS.AES.encrypt(
+        content,
+        SECRET_KEY
+      ).toString();
+
       if (Find_Message?.member?.user?.id === req.user_id) {
         await database.serverGroupMessageReplies.update({
           where: {
             id: message_replay_id,
           },
           data: {
-            Message: content,
+            Message: encryptedMessage,
             Is_Edited: true,
           },
         });
@@ -663,14 +781,14 @@ routes.put(
           },
         },
       });
-      console.log(Message);
+      // console.log(Message);
       return res.status(200).json({
         success: true,
         message: "Message deleted successfully",
         data: Message,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while creating group chat",

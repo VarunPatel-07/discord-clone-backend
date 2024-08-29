@@ -113,7 +113,7 @@ routes.post(
         },
       });
     } catch (error) {
-      // // console.log(error);
+     
       return res.status(500).json({
         success: false,
         message: "Internal server error while sending follow request",
@@ -232,7 +232,7 @@ routes.get(
         });
       }
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message:
@@ -283,7 +283,7 @@ routes.get(
         sent_requests: user?.requestsSend,
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching sent requests",
@@ -330,7 +330,7 @@ routes.get(
         received_requests: user?.requestReceived,
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while fetching received requests",
@@ -377,7 +377,7 @@ routes.get(
           },
         },
       });
-      // // console.log(user);
+      // // // console.log(user);
       if (!user) {
         return res.status(400).json({
           success: false,
@@ -439,7 +439,7 @@ routes.get(
           },
         },
       });
-      // // console.log(user);
+      // // // console.log(user);
       if (!user) {
         return res.status(400).json({
           success: false,
@@ -555,7 +555,7 @@ routes.put(
         },
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while accepting the follow request",
@@ -625,6 +625,18 @@ routes.put(
           },
         },
       });
+      const notification = await database.notification.findFirst({
+        where: {
+          AND: [{ senderId: req.user_id }, { receiverId: receiverId }],
+        },
+      });
+      if (notification) {
+        await database.notification.delete({
+          where: {
+            id: notification.id,
+          },
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -643,7 +655,7 @@ routes.put(
         },
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while withdrawing the follow request",
@@ -705,12 +717,25 @@ routes.put(
           },
         },
       });
+
+      const notification = await database.notification.findFirst({
+        where: {
+          AND: [{ senderId: senderId }, { receiverId: req.user_id }],
+        },
+      });
+      if (notification) {
+        await database.notification.delete({
+          where: {
+            id: notification.id,
+          },
+        });
+      }
       return res.status(200).json({
         success: true,
         message: "Request ignored successfully",
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       res.status(500).json({
         success: false,
         message: "Internal server error while ignoring the follow request",
@@ -786,7 +811,7 @@ routes.put(
         message: "Unfollowed successfully",
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while unfollowing the user",
@@ -850,7 +875,7 @@ routes.put(
         message: "Follower removed successfully",
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message:
@@ -868,7 +893,7 @@ routes.put(
   multer().none(),
   async (req: any, res: any) => {
     try {
-      // console.log(req.params);
+      // // console.log(req.params);
       const { BlockUserId } = req.params;
       if (!BlockUserId || BlockUserId === "undefined")
         return res.status(400).json({
@@ -913,7 +938,7 @@ routes.put(
         message: "User blocked successfully",
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while blocking the user",
@@ -968,13 +993,13 @@ routes.put(
           },
         },
       });
-      // console.log(unblock_user_initiator, unblock_user_receiver);
+      // // console.log(unblock_user_initiator, unblock_user_receiver);
       return res.status(200).json({
         success: true,
         message: "User unblocked successfully",
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while unblocking the user",

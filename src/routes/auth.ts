@@ -74,7 +74,7 @@ router.post(
         })
         .redirect(Frontend_URL);
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while registering user",
@@ -123,7 +123,7 @@ router.post(
         })
         .redirect(Frontend_URL);
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         message: "Internal server error while logging in user",
         success: false,
@@ -182,7 +182,7 @@ router.get(
             following: true,
           },
         });
-        // // // console.log(user);
+        // // // // console.log(user);
         if (!user) {
           return res
             .status(400)
@@ -192,7 +192,7 @@ router.get(
         return res.status(200).json({ user, success: true });
       }
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while getting user details",
@@ -206,7 +206,7 @@ router.put(
   Profile_Picture_Uploader,
   async (req: any, res: any) => {
     try {
-      // // console.log(req.body);
+      // // // console.log(req.body);
       const user = await database.user.findUnique({
         where: { id: req.user_id },
       });
@@ -229,7 +229,7 @@ router.put(
         ProfileBanner_Color: user.ProfileBanner_Color as string,
         ProfileBgColor: user.ProfileBgColor as string,
       };
-      // // console.log("update_user_info", update_user_info);
+      // // // console.log("update_user_info", update_user_info);
       if (UserName !== "") update_user_info.UserName = UserName;
       if (FullName !== "") update_user_info.FullName = FullName;
       if (Email !== "") update_user_info.Email = Email;
@@ -329,7 +329,7 @@ router.put(
             data: update_user_info,
           });
 
-          // // console.log("updated user", updated_user);
+          // // // console.log("updated user", updated_user);
 
           return res.status(200).json({
             success: true,
@@ -351,7 +351,7 @@ router.put(
         user: updated_user,
       });
     } catch (error) {
-      // // console.log(error);
+      // // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while updating user details",

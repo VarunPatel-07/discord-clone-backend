@@ -91,7 +91,7 @@ routes.post(
         success: true,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         message: "Internal server error while creating server",
         success: false,
@@ -132,7 +132,7 @@ routes.get("/get-servers", CheckAuthToken, async (req: any, res: any) => {
     StoreDataInRedis(cacheKey, server_info);
     return res.status(200).json({ server_info, success: true });
   } catch (error) {
-    // console.log(error);
+    // // console.log(error);
   }
 });
 //
@@ -301,7 +301,7 @@ routes.put(
         },
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while joining server with invite code",
@@ -390,7 +390,7 @@ routes.put(
         message: "Server info updated successfully",
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while updating server info",
@@ -480,7 +480,7 @@ routes.put(
         });
       }
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while updating server info",
@@ -546,7 +546,7 @@ routes.put(
         serverName: server_info.name,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while kicking out member from server",
@@ -569,15 +569,15 @@ routes.put(
       const cache_server_key = `single_server_${serverId}`;
       DeleteSpecificDataInRedis(cache_server_key);
       DeleteSpecificDataInRedis(multiple_server_info);
-      if (ChannelType == "TEXT") {
+      if (ChannelType === "TEXT") {
         const cache_channel_key = `text_channel_${serverId}`;
         DeleteSpecificDataInRedis(cache_channel_key);
       }
-      if (ChannelType == "AUDIO") {
+      if (ChannelType === "AUDIO") {
         const cache_channel_key = `audio_channel_${serverId}`;
         DeleteSpecificDataInRedis(cache_channel_key);
       }
-      if (ChannelType == "VIDEO") {
+      if (ChannelType === "VIDEO") {
         const cache_channel_key = `video_channel_${serverId}`;
         DeleteSpecificDataInRedis(cache_channel_key);
       }
@@ -630,15 +630,30 @@ routes.put(
 
           if (ChannelType == "TEXT") {
             const cache_channel_key = `text_channel_${serverId}`;
-            StoreDataInRedis(cache_channel_key, updated_info.channels);
+            StoreDataInRedis(
+              cache_channel_key,
+              updated_info.channels.filter(
+                (channel: any) => channel.type === ChannelType
+              )
+            );
           }
           if (ChannelType == "AUDIO") {
             const cache_channel_key = `audio_channel_${serverId}`;
-            StoreDataInRedis(cache_channel_key, updated_info.channels);
+            StoreDataInRedis(
+              cache_channel_key,
+              updated_info.channels.filter(
+                (channel: any) => channel.type === ChannelType
+              )
+            );
           }
           if (ChannelType == "VIDEO") {
             const cache_channel_key = `video_channel_${serverId}`;
-            StoreDataInRedis(cache_channel_key, updated_info.channels);
+            StoreDataInRedis(
+              cache_channel_key,
+              updated_info.channels.filter(
+                (channel: any) => channel.type === ChannelType
+              )
+            );
           }
           StoreDataInRedis(cache_server_key, updated_info);
           return res.status(200).json({
@@ -648,7 +663,7 @@ routes.put(
         }
       }
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         message: "Internal server error while creating new channel",
         success: false,
@@ -732,7 +747,7 @@ routes.put(
         success: true,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while updating channel",
@@ -808,7 +823,7 @@ routes.delete(
         success: true,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while deleting channel",
@@ -849,7 +864,7 @@ routes.put(
         .status(200)
         .json({ message: "Member Left successfully", success: true });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while Leaving The server",
@@ -902,7 +917,7 @@ routes.delete(
         adminId: server.usersId,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while Deleting The server",
@@ -959,7 +974,7 @@ routes.get(
         text_channels: text_channels.channels,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while Deleting The server",
@@ -979,7 +994,7 @@ routes.get(
       const { serverId } = req.params as { serverId: string };
       const cache_audio_channel_key = `audio_channel_${serverId}`;
       const CacheAudioChannel = await redis.get(cache_audio_channel_key);
-      // // console.log("CacheAudioChannel", CacheAudioChannel);
+      // // // console.log("CacheAudioChannel", CacheAudioChannel);
       if (CacheAudioChannel) {
         // If cached data exists, parse it and return
         return res.status(200).json({
@@ -1015,7 +1030,7 @@ routes.get(
         audio_channels: audio_channels.channels,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while Deleting The server",
@@ -1059,7 +1074,7 @@ routes.get(
           },
         },
       });
-      // // console.log("video_channels", video_channels);
+      // // // console.log("video_channels", video_channels);
       if (!video_channels) {
         return res.status(200).json({
           success: false,
@@ -1072,7 +1087,7 @@ routes.get(
         video_channels: video_channels.channels,
       });
     } catch (error) {
-      // console.log(error);
+      // // console.log(error);
       return res.status(500).json({
         success: false,
         message: "Internal server error while Deleting The server",

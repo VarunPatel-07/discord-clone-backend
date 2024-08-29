@@ -16,6 +16,7 @@ import redis from "./Redis";
 import cookieParser from "cookie-parser";
 import Message from "./routes/Messages";
 import VideoCall from "./routes/VideoCall";
+import Notification from "./routes/Notification";
 app.use(
   cors({
     origin: true, // Update with your frontend URL
@@ -32,7 +33,7 @@ redis.on("connect", () => {
   console.log("connected to redis 📶 🥳");
 });
 redis.on("error", (err) => {
-  // console.log(err);
+  console.log(err);
 });
 
 // ? using express-session to Create a session For the User Login/Signup With Google Or Other Providers
@@ -51,6 +52,7 @@ app.use("/app/api/server", serverRout);
 app.use("/app/api/follow", Follow);
 app.use("/app/api/Messages", Message);
 app.use("/app/api/VideoCall", VideoCall);
+app.use("/app/api/Notification", Notification);
 
 // Passport.js initialization to use Google authentication
 app.use(passport.initialize());
@@ -74,8 +76,6 @@ const io = new SocketIOServer(server, {
 });
 
 io.on("connection", (socket) => {
-  // console.log("a user connected", socket.id);
-
   const token = socket.handshake.auth.token;
   if (token) {
     Handel_User_Online_Status(token as string, true);
@@ -87,7 +87,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("New_UserJoined_The_Server", (data) => {
-    // console.log("New_UserJoined_The_Server", data);
     socket.broadcast.emit("EmitNew_UserJoined_The_Server");
   });
 
@@ -100,7 +99,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ServerHasBeenDeleted", (data) => {
-    // console.log("ServerHasBeenDeleted", data);
     socket.broadcast.emit("EmitServerHasBeenDeleted", data);
   });
 
@@ -108,6 +106,7 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("EmitNewChannelHasBeenCreated");
   });
   socket.on("NewFollowRequestHasBeenSent", (data) => {
+    // console.log("NewFollowRequestHasBeenSent", data);
     socket.broadcast.emit("EmitNewFollowRequestHasBeenSent", data);
   });
   socket.on("A_FollowRequestHasBeenWithdrawn", () => {
@@ -124,6 +123,13 @@ io.on("connection", (socket) => {
   });
   socket.on("AnFollowerHasBeenRemoved", () => {
     socket.broadcast.emit("EmitAnFollowerHasBeenRemoved");
+  });
+
+  socket.on("StartTyping", (data) => {
+    socket.broadcast.emit("EmitStartTyping", data);
+  });
+  socket.on("StopTyping", (data) => {
+    socket.broadcast.emit("EmitStopTyping");
   });
 
   socket.on("NewMessageHasBeenSent", (data) => {
@@ -156,6 +162,5 @@ io.on("connection", (socket) => {
       Handel_User_Online_Status(token as string, false);
       socket.broadcast.emit("EmitUserStatusChanged");
     }
-    // // console.log("user disconnected");
   });
 });
