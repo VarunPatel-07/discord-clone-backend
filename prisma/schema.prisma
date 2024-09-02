@@ -41,11 +41,11 @@ model User {
   blockedUsers         User[]                 @relation("UserBlocks")
   blockedBy            User[]                 @relation("UserBlocks")
 
+  DirectMessagesSender   DirectMessages[] @relation("DirectMessagesSender")
+  DirectMessagesReceiver DirectMessages[] @relation("DirectMessagesReceiver")
+
   NotificationSent     Notification[] @relation("SentNotifications")
   NotificationReceived Notification[] @relation("ReceivedNotifications")
-
-  DirectMessagesSender  DirectMessages[] @relation("sender")
-  DirectMessagesRecever DirectMessages[] @relation("recever")
 
   @@unique([Email, UserName])
 }
@@ -138,11 +138,11 @@ model Channel {
   serverId String
   server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  Message        GroupMessage[]
-  DirectMessages DirectMessages[]
-  Notification   Notification[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  Message   GroupMessage[]
+
+  Notification Notification[]
 
   @@index([userId])
   @@index([serverId])
@@ -196,6 +196,7 @@ model OneToOneConversation {
   Sender         User             @relation("sender", fields: [SenderId], references: [id], onDelete: Cascade)
   ReceiverId     String
   Recever        User             @relation("recever", fields: [ReceiverId], references: [id], onDelete: Cascade)
+  LatestMessage  String           @default("")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   DirectMessages DirectMessages[]
@@ -219,26 +220,21 @@ model GroupConversation {
 }
 
 model DirectMessages {
-  id         String  @id @default(uuid())
-  content    String  @db.Text
-  FileURL    String  @db.Text
-  IsEdited   Boolean @default(false)
-  IsDeleted  Boolean @default(false)
-  SenderId   String
-  Sender     User    @relation("sender", fields: [SenderId], references: [id], onDelete: Cascade)
-  ReceiverId String
-  Recever    User    @relation("recever", fields: [ReceiverId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  content   String  @db.Text
+  FileURL   String  @db.Text
+  IsEdited  Boolean @default(false)
+  IsDeleted Boolean @default(false)
 
   ConversationId String
   Conversation   OneToOneConversation @relation(fields: [ConversationId], references: [id], onDelete: Cascade)
 
+  SenderId String
+  Sender   User   @relation("DirectMessagesSender", fields: [SenderId], references: [id], onDelete: Cascade)
+
+  ReceiverId String
+  Receiver   User   @relation("DirectMessagesReceiver", fields: [ReceiverId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  Channel   Channel? @relation(fields: [channelId], references: [id])
-  channelId String?
-
-  @@unique([SenderId, ReceiverId])
-  @@index([SenderId])
-  @@index([ReceiverId])
 }

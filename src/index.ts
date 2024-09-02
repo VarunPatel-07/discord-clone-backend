@@ -1,6 +1,7 @@
 import { configDotenv } from "dotenv";
 configDotenv();
 import express from "express";
+
 import cors from "cors";
 import auth from "./routes/auth";
 import serverRout from "./routes/serverRout";
@@ -17,12 +18,15 @@ import cookieParser from "cookie-parser";
 import Message from "./routes/Messages";
 import VideoCall from "./routes/VideoCall";
 import Notification from "./routes/Notification";
+import OneToOneMessage from "./routes/OneToOneMessage";
+
 app.use(
   cors({
     origin: true, // Update with your frontend URL
     credentials: true, // Allow cookies to be sent
   })
 );
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -51,6 +55,7 @@ app.use("/app/api/auth", auth);
 app.use("/app/api/server", serverRout);
 app.use("/app/api/follow", Follow);
 app.use("/app/api/Messages", Message);
+app.use("/app/api/OneToOneMessage", OneToOneMessage);
 app.use("/app/api/VideoCall", VideoCall);
 app.use("/app/api/Notification", Notification);
 

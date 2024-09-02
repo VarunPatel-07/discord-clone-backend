@@ -113,7 +113,6 @@ routes.post(
         },
       });
     } catch (error) {
-     
       return res.status(500).json({
         success: false,
         message: "Internal server error while sending follow request",
@@ -538,6 +537,19 @@ routes.put(
         },
       });
 
+      const notification = await database.notification.findFirst({
+        where: {
+          senderId: request_sender?.id,
+          receiverId: request_accepter?.id,
+        },
+      });
+      if (notification) {
+        await database.notification.delete({
+          where: {
+            id: notification?.id,
+          },
+        });
+      }
       return res.status(200).json({
         success: true,
         message: "Follow request accepted successfully",

@@ -11,63 +11,8 @@ const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
 
 const routes = express.Router();
 
-// * (1) creating a route for creating one to one chat
-routes.post(
-  "/CreateOneToOneChat",
-  CheckAuthToken,
-  multer().none(),
-  async (req: any, res: any) => {
-    try {
-      const { receiver_id } = req.body;
-      if (receiver_id === req.user_id) return;
-      const sender_id = req.user_id;
 
-      const FindChat = await database.oneToOneConversation.findFirst({
-        where: {
-          AND: [{ SenderId: sender_id }, { ReceiverId: receiver_id }],
-        },
-        include: {
-          DirectMessages: true,
-          Recever: true,
-          Sender: true,
-        },
-      });
-
-      if (FindChat) {
-        return res.status(200).json({
-          success: true,
-          message: "Chat exists",
-          data: FindChat,
-        });
-      }
-
-      const CreateChat = await database.oneToOneConversation.create({
-        data: {
-          SenderId: sender_id,
-          ReceiverId: receiver_id,
-        },
-        include: {
-          DirectMessages: true,
-          Recever: true,
-          Sender: true,
-        },
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Chat created successfully",
-        data: CreateChat,
-      });
-    } catch (error) {
-      // // console.log(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error while creating one to one chat",
-      });
-    }
-  }
-);
-// * (2) creating a route for Sending Message In The Selected Channel in The Server
+// * (1) creating a route for Sending Message In The Selected Channel in The Server
 routes.post(
   "/sendMessageInTheSelectedChannel",
   CheckAuthToken,
@@ -178,7 +123,7 @@ routes.post(
     }
   }
 );
-// * (3) creating a route for Fetching Messages Of The Channel
+// * (2) creating a route for Fetching Messages Of The Channel
 routes.get(
   "/FetchingMessagesOfChannel",
   CheckAuthToken,
@@ -284,7 +229,7 @@ routes.get(
     }
   }
 );
-// * (4) creating a route for Editing Message
+// * (3) creating a route for Editing Message
 routes.put(
   "/EditMessage",
   CheckAuthToken,
@@ -358,7 +303,7 @@ routes.put(
     }
   }
 );
-// * (5) creating a route for Deleting Message
+// * (4) creating a route for Deleting Message
 routes.put(
   "/DeleteMessage",
   CheckAuthToken,
@@ -465,7 +410,7 @@ routes.put(
     }
   }
 );
-// * (6) creating a route for Replying Message
+// * (5) creating a route for Replying Message
 routes.put(
   "/ReplayMessage",
   CheckAuthToken,
@@ -619,7 +564,7 @@ routes.put(
     }
   }
 );
-// * (7) Delete Message Reply
+// * (6) Delete Message Reply
 routes.put(
   "/DeleteMessageReply",
   CheckAuthToken,
@@ -706,7 +651,7 @@ routes.put(
     }
   }
 );
-// * (8) Editing message reply
+// * (7) Editing message reply
 routes.put(
   "/EditMessageReply",
   CheckAuthToken,
