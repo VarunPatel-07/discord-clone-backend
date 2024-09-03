@@ -11,7 +11,6 @@ const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
 
 const routes = express.Router();
 
-
 // * (1) creating a route for Sending Message In The Selected Channel in The Server
 routes.post(
   "/sendMessageInTheSelectedChannel",
@@ -104,7 +103,6 @@ routes.post(
               },
             },
           },
-          ServerGroupMessageReplies: true,
         },
       });
 
@@ -188,11 +186,6 @@ routes.get(
             },
           },
           channel: true,
-          ServerGroupMessageReplies: {
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
         },
         orderBy: {
           createdAt: "asc",
@@ -357,11 +350,6 @@ routes.put(
               },
             },
             channel: true,
-            ServerGroupMessageReplies: {
-              orderBy: {
-                createdAt: "asc",
-              },
-            },
           },
         });
         return res.status(200).json({
@@ -387,11 +375,6 @@ routes.put(
                 },
               },
               channel: true,
-              ServerGroupMessageReplies: {
-                orderBy: {
-                  createdAt: "asc",
-                },
-              },
             },
           });
           return res.status(200).json({
@@ -419,10 +402,12 @@ routes.put(
     body("server_id").exists().withMessage("server_id is required"),
     body("channel_id").exists().withMessage("channel_id is required"),
     body("content").exists().withMessage("content is required"),
-    body("message_id").exists().withMessage("message_id is required"),
-    body("Replying_To_UserName")
+    body("replying_to_message")
       .exists()
-      .withMessage("Replying_To_UserName is required"),
+      .withMessage("replying_to_message is required"),
+    body(" Replying_to_user_member_id")
+      .exists()
+      .withMessage(" Replying_to_user_member_id is required"),
   ],
   async (req: any, res: any) => {
     try {
@@ -430,9 +415,9 @@ routes.put(
         server_id,
         channel_id,
         content,
+        replying_to_message,
 
-        message_id,
-        Replying_To_UserName,
+        Replying_to_user_member_id,
       } = req.body;
 
       const result = validationResult(req);
@@ -497,62 +482,21 @@ routes.put(
         content,
         SECRET_KEY
       ).toString();
-      const Find_Message = await database.groupMessage.findUnique({
-        where: {
-          id: message_id,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-        },
-      });
-      if (!Find_Message) {
-        return res.status(404).json({
-          success: false,
-          message: "Message not found",
-        });
-      }
-      await database.serverGroupMessageReplies.create({
+      const CreateChat = await database.groupMessage.create({
         data: {
-          ChannelId: FindChannel?.id as string,
-          FullName: user?.FullName as string,
-          MessageId: message_id,
-          Message: encryptedMessage_replay,
-          Profile_Picture: user?.Profile_Picture,
-          UserId: user?.id,
-          UserName: user?.UserName,
-          ReplyingUser_UserName: Replying_To_UserName,
-        },
-      });
-
-      const CreateChat = await database.groupMessage.update({
-        where: {
-          id: message_id,
-        },
-        data: {
+          content: encryptedMessage_replay,
+          channelId: channel_id,
+          memberId: Member?.id,
+          replyingToUser_MemberId: Replying_to_user_member_id,
           Is_Reply: true,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          channel: true,
-          ServerGroupMessageReplies: {
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
+          ReplyingMessage: replying_to_message,
+          FileURL: "",
         },
       });
 
       return res.status(200).json({
         success: true,
-        message: "Message sent successfully",
+        message: "Message replied successfully",
         data: CreateChat,
       });
     } catch (error) {
@@ -565,181 +509,181 @@ routes.put(
   }
 );
 // * (6) Delete Message Reply
-routes.put(
-  "/DeleteMessageReply",
-  CheckAuthToken,
-  multer().none(),
-  async (req: any, res: any) => {
-    try {
-      const { message_id, message_replay_id } = req.query;
+// routes.put(
+//   "/DeleteMessageReply",
+//   CheckAuthToken,
+//   multer().none(),
+//   async (req: any, res: any) => {
+//     try {
+//       const { message_id, message_replay_id } = req.query;
 
-      if (!message_id || !message_replay_id) return;
-      const FindMessage = await database.groupMessage.findUnique({
-        where: {
-          id: message_id,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          channel: {
-            include: {
-              server: true,
-            },
-          },
-        },
-      });
-      const MatchTheCacheKey = `ChannelMessages:${FindMessage?.channel?.server?.id}:${FindMessage?.channel?.id}:page-*`;
-      const CacheInfo = await redis.keys(MatchTheCacheKey);
-      for (const key of CacheInfo) {
-        await redis.del(key);
-      }
-      if (FindMessage?.member?.user?.id === req.user_id) {
-        await database.serverGroupMessageReplies.update({
-          where: {
-            id: message_replay_id,
-          },
-          data: {
-            Is_Deleted: true,
-            Message: "This message has been deleted ",
-          },
-        });
-      } else {
-        if (FindMessage?.channel?.userId === req.user_id) {
-          await database.serverGroupMessageReplies.update({
-            where: {
-              id: message_replay_id,
-            },
-            data: {
-              Is_Deleted: true,
-              Message: "This message has been deleted by the admin  ",
-            },
-          });
-        }
-      }
-      const Message = await database.groupMessage.findUnique({
-        where: {
-          id: message_id,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          channel: true,
-          ServerGroupMessageReplies: {
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
-        },
-      });
-      return res.status(200).json({
-        success: true,
-        message: "Message deleted successfully",
-        data: Message,
-      });
-    } catch (error) {
-      // // console.log(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error while creating group chat",
-      });
-    }
-  }
-);
-// * (7) Editing message reply
-routes.put(
-  "/EditMessageReply",
-  CheckAuthToken,
-  multer().none(),
-  [body("content").exists().withMessage("content is required")],
-  async (req: any, res: any) => {
-    try {
-      const { message_id, message_replay_id } = req.query;
-      const { content } = req.body;
-      // console.log(req.body);
-      const Find_Message = await database.groupMessage.findUnique({
-        where: {
-          id: message_id,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          channel: {
-            include: {
-              server: true,
-            },
-          },
-        },
-      });
+//       if (!message_id || !message_replay_id) return;
+//       const FindMessage = await database.groupMessage.findUnique({
+//         where: {
+//           id: message_id,
+//         },
+//         include: {
+//           member: {
+//             include: {
+//               user: true,
+//             },
+//           },
+//           channel: {
+//             include: {
+//               server: true,
+//             },
+//           },
+//         },
+//       });
+//       const MatchTheCacheKey = `ChannelMessages:${FindMessage?.channel?.server?.id}:${FindMessage?.channel?.id}:page-*`;
+//       const CacheInfo = await redis.keys(MatchTheCacheKey);
+//       for (const key of CacheInfo) {
+//         await redis.del(key);
+//       }
+//       if (FindMessage?.member?.user?.id === req.user_id) {
+//         await database.serverGroupMessageReplies.update({
+//           where: {
+//             id: message_replay_id,
+//           },
+//           data: {
+//             Is_Deleted: true,
+//             Message: "This message has been deleted ",
+//           },
+//         });
+//       } else {
+//         if (FindMessage?.channel?.userId === req.user_id) {
+//           await database.serverGroupMessageReplies.update({
+//             where: {
+//               id: message_replay_id,
+//             },
+//             data: {
+//               Is_Deleted: true,
+//               Message: "This message has been deleted by the admin  ",
+//             },
+//           });
+//         }
+//       }
+//       const Message = await database.groupMessage.findUnique({
+//         where: {
+//           id: message_id,
+//         },
+//         include: {
+//           member: {
+//             include: {
+//               user: true,
+//             },
+//           },
+//           channel: true,
+//           ServerGroupMessageReplies: {
+//             orderBy: {
+//               createdAt: "asc",
+//             },
+//           },
+//         },
+//       });
+//       return res.status(200).json({
+//         success: true,
+//         message: "Message deleted successfully",
+//         data: Message,
+//       });
+//     } catch (error) {
+//       // // console.log(error);
+//       return res.status(500).json({
+//         success: false,
+//         message: "Internal server error while creating group chat",
+//       });
+//     }
+//   }
+// );
+// // * (7) Editing message reply
+// routes.put(
+//   "/EditMessageReply",
+//   CheckAuthToken,
+//   multer().none(),
+//   [body("content").exists().withMessage("content is required")],
+//   async (req: any, res: any) => {
+//     try {
+//       const { message_id, message_replay_id } = req.query;
+//       const { content } = req.body;
+//       // console.log(req.body);
+//       const Find_Message = await database.groupMessage.findUnique({
+//         where: {
+//           id: message_id,
+//         },
+//         include: {
+//           member: {
+//             include: {
+//               user: true,
+//             },
+//           },
+//           channel: {
+//             include: {
+//               server: true,
+//             },
+//           },
+//         },
+//       });
 
-      if (!Find_Message) {
-        return res.status(404).json({
-          success: false,
-          message: "Message not found",
-        });
-      }
+//       if (!Find_Message) {
+//         return res.status(404).json({
+//           success: false,
+//           message: "Message not found",
+//         });
+//       }
 
-      const MatchTheCacheKey = `ChannelMessages:${Find_Message?.channel?.server?.id}:${Find_Message?.channel?.id}:page-*`;
-      const CacheInfo = await redis.keys(MatchTheCacheKey);
-      for (const key of CacheInfo) {
-        await redis.del(key);
-      }
-      const encryptedMessage = CryptoJS.AES.encrypt(
-        content,
-        SECRET_KEY
-      ).toString();
+//       const MatchTheCacheKey = `ChannelMessages:${Find_Message?.channel?.server?.id}:${Find_Message?.channel?.id}:page-*`;
+//       const CacheInfo = await redis.keys(MatchTheCacheKey);
+//       for (const key of CacheInfo) {
+//         await redis.del(key);
+//       }
+//       const encryptedMessage = CryptoJS.AES.encrypt(
+//         content,
+//         SECRET_KEY
+//       ).toString();
 
-      if (Find_Message?.member?.user?.id === req.user_id) {
-        await database.serverGroupMessageReplies.update({
-          where: {
-            id: message_replay_id,
-          },
-          data: {
-            Message: encryptedMessage,
-            Is_Edited: true,
-          },
-        });
-      }
-      const Message = await database.groupMessage.findUnique({
-        where: {
-          id: message_id,
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          channel: true,
-          ServerGroupMessageReplies: {
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
-        },
-      });
-      // console.log(Message);
-      return res.status(200).json({
-        success: true,
-        message: "Message deleted successfully",
-        data: Message,
-      });
-    } catch (error) {
-      // // console.log(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error while creating group chat",
-      });
-    }
-  }
-);
+//       if (Find_Message?.member?.user?.id === req.user_id) {
+//         await database.serverGroupMessageReplies.update({
+//           where: {
+//             id: message_replay_id,
+//           },
+//           data: {
+//             Message: encryptedMessage,
+//             Is_Edited: true,
+//           },
+//         });
+//       }
+//       const Message = await database.groupMessage.findUnique({
+//         where: {
+//           id: message_id,
+//         },
+//         include: {
+//           member: {
+//             include: {
+//               user: true,
+//             },
+//           },
+//           channel: true,
+//           ServerGroupMessageReplies: {
+//             orderBy: {
+//               createdAt: "asc",
+//             },
+//           },
+//         },
+//       });
+//       // console.log(Message);
+//       return res.status(200).json({
+//         success: true,
+//         message: "Message deleted successfully",
+//         data: Message,
+//       });
+//     } catch (error) {
+//       // // console.log(error);
+//       return res.status(500).json({
+//         success: false,
+//         message: "Internal server error while creating group chat",
+//       });
+//     }
+//   }
+// );
 
 export default routes;

@@ -117,6 +117,8 @@ model Member {
   GroupConversationreceivers GroupConversation[] @relation("receivers")
   GroupConversation          GroupConversation[]
 
+  ReplyingToUsersMessage GroupMessage[] @relation("ReplyingToUser")
+
   @@index([userId])
   @@index([serverId])
 }
@@ -157,37 +159,19 @@ model GroupMessage {
   DeletedBy String  @default("") @db.VarChar(255)
   Is_Reply  Boolean @default(false)
 
-  memberId  String
-  member    Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  channelId String
-  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  memberId                String
+  member                  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  channelId               String
+  channel                 Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  ReplyingMessage         String?  @db.Text
+  replyingToUser_MemberId String?
+  replyingToUser          Member?  @relation("ReplyingToUser", fields: [replyingToUser_MemberId], references: [id], onDelete: Cascade)
 
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  ServerGroupMessageReplies ServerGroupMessageReplies[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([memberId])
   @@index([channelId])
-}
-
-model ServerGroupMessageReplies {
-  id              String @id @default(uuid())
-  MessageId       String
-  Message         String @db.VarChar(255)
-  ChannelId       String @db.VarChar(255)
-  UserId          String @db.VarChar(255)
-  UserName        String @db.VarChar(255)
-  FullName        String @db.VarChar(255)
-  Profile_Picture String @db.VarChar(255)
-
-  ReplyingUser_UserName String @db.VarChar(255)
-
-  Is_Deleted Boolean @default(false)
-  Is_Edited  Boolean @default(false)
-
-  GroupMessage GroupMessage @relation(fields: [MessageId], references: [id], onDelete: Cascade)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
 }
 
 model OneToOneConversation {
