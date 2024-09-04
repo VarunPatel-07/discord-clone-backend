@@ -28,6 +28,7 @@ routes.post(
         return res.status(400).json({ errors: result });
       }
       const { server_id, channel_id, content } = req.body;
+      console.log(server_id, channel_id, content);
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {
@@ -103,9 +104,14 @@ routes.post(
               },
             },
           },
+          replyingToUser: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
-
+      console.log(CreateChat);
       // Decrypt the content for the response
 
       return res.status(200).json({
@@ -186,6 +192,11 @@ routes.get(
             },
           },
           channel: true,
+          replyingToUser: {
+            include: {
+              user: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "asc",
@@ -405,9 +416,12 @@ routes.put(
     body("replying_to_message")
       .exists()
       .withMessage("replying_to_message is required"),
-    body(" Replying_to_user_member_id")
+    body("replying_to_user_member_id")
       .exists()
       .withMessage(" Replying_to_user_member_id is required"),
+    body("replying_message_message_id")
+      .exists()
+      .withMessage("replying_message_message_id is required"),
   ],
   async (req: any, res: any) => {
     try {
@@ -416,8 +430,8 @@ routes.put(
         channel_id,
         content,
         replying_to_message,
-
-        Replying_to_user_member_id,
+        replying_to_user_member_id,
+        replying_message_message_id,
       } = req.body;
 
       const result = validationResult(req);
@@ -487,10 +501,25 @@ routes.put(
           content: encryptedMessage_replay,
           channelId: channel_id,
           memberId: Member?.id,
-          replyingToUser_MemberId: Replying_to_user_member_id,
           Is_Reply: true,
-          ReplyingMessage: replying_to_message,
+          replyingMessage: replying_to_message,
+          replyingMessageMessageId: replying_message_message_id,
+          replyingToUser_MemberId: replying_to_user_member_id,
+
           FileURL: "",
+        },
+        include: {
+          channel: true,
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          replyingToUser: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
 
