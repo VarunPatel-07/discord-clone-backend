@@ -22,7 +22,7 @@ import OneToOneMessage from "./routes/OneToOneMessage";
 
 app.use(
   cors({
-    origin: true, // Update with your frontend URL
+    origin: "*", // Update with your frontend URL
     credentials: true, // Allow cookies to be sent
   })
 );

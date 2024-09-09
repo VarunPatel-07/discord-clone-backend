@@ -28,7 +28,7 @@ routes.post(
         return res.status(400).json({ errors: result });
       }
       const { server_id, channel_id, content } = req.body;
-      console.log(server_id, channel_id, content);
+
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {
@@ -111,7 +111,7 @@ routes.post(
           },
         },
       });
-      console.log(CreateChat);
+
       // Decrypt the content for the response
 
       return res.status(200).json({
@@ -199,7 +199,7 @@ routes.get(
           },
         },
         orderBy: {
-          createdAt: "asc",
+          createdAt: "desc",
         },
         skip: (Page - 1) * Limit,
         take: Limit,
@@ -210,7 +210,11 @@ routes.get(
           channelId: FindChannel?.id,
         },
       });
-
+      if (Messages.length < 1)
+        return res.status(200).json({
+          success: false,
+          message: "no message",
+        });
       const TotalPages = Math.ceil(TotalMessages / Limit);
       const hasMoreData = Page < TotalPages;
       const CacheData = {
@@ -290,6 +294,7 @@ routes.put(
             },
           },
           channel: true,
+          replyingToUser: true,
         },
       });
 
