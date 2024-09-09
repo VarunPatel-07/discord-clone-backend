@@ -22,7 +22,7 @@ import OneToOneMessage from "./routes/OneToOneMessage";
 
 app.use(
   cors({
-    origin: "*", // Update with your frontend URL
+    origin: ["http://localhost:3000", "http://localhost:3001"], // Update with your frontend URL
     credentials: true, // Allow cookies to be sent
   })
 );
@@ -76,7 +76,8 @@ const server = app.listen(Port, () => {
 const io = new SocketIOServer(server, {
   pingTimeout: 60000,
   cors: {
-    origin: true,
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true, // Ensure credentials are allowed
   },
 });
 

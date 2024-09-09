@@ -10,10 +10,7 @@ import CheckAuthToken from "../../middleware/CheckAuthToken";
 import redis from "../Redis";
 import RandomColorGenerator from "../Helper/RandomBgColorGenerator";
 import { DeleteSpecificDataInRedis } from "../Helper/StorDataInRedis";
-import {
-  Profile_Picture_Uploader,
-  Upload_Image_In_Compressed_Format,
-} from "../../middleware/MulterImageUploader";
+import { Profile_Picture_Uploader, Upload_Image_In_Compressed_Format } from "../../middleware/MulterImageUploader";
 
 const slatRound = process.env.SALT_ROUNDS as string;
 
@@ -26,12 +23,7 @@ const router = express.Router();
 router.post(
   "/register",
   multer().none(),
-  [
-    body("Email").isEmail(),
-    body("Password").exists(),
-    body("UserName").exists(),
-    body("FullName").exists(),
-  ],
+  [body("Email").isEmail(), body("Password").exists(), body("UserName").exists(), body("FullName").exists()],
   async (req: any, res: any) => {
     const { Email, Password, UserName, FullName } = req.body;
 
@@ -86,10 +78,7 @@ router.post(
 router.post(
   "/login",
   multer().none(),
-  [
-    body("UserName", "UserName is required").exists(),
-    body("Password", "Password is required").exists(),
-  ],
+  [body("UserName", "UserName is required").exists(), body("Password", "Password is required").exists()],
   async (req: any, res: any) => {
     const { UserName, Password } = req.body;
     try {
@@ -105,10 +94,7 @@ router.post(
       if (!check_user) {
         return res.status(400).json({ message: "User does not exist" });
       }
-      const check_password = await bcrypt.compare(
-        Password,
-        check_user.Password
-      );
+      const check_password = await bcrypt.compare(Password, check_user.Password);
       if (!check_password) {
         return res.status(400).json({ message: "Incorrect password" });
       }
@@ -132,11 +118,8 @@ router.post(
   }
 );
 // * (3) checking that user contain valid auth token
-router.get(
-  "/check-user",
-  multer().none(),
-  CheckAuthToken,
-  async (req: any, res: any) => {
+router.get("/check-user", multer().none(), CheckAuthToken, async (req: any, res: any) => {
+  try {
     if (req.user_id) {
       const is_user_exist = await database.user.findUnique({
         where: {
@@ -145,219 +128,168 @@ router.get(
       });
 
       if (is_user_exist) {
-        return res
-          .status(200)
-          .json({ success: true, message: "User authenticated" });
+        return res.status(200).json({ success: true, message: "User authenticated" });
       } else {
-        return res
-          .status(401)
-          .json({ success: false, message: "User not authenticated" });
+        return res.status(401).json({ success: false, message: "User not authenticated" });
       }
     }
-    return res
-      .status(401)
-      .json({ success: false, message: "User not authenticated" });
+    return res.status(401).json({ success: false, message: "User not authenticated" });
+  } catch (error) {
+    console.log(error);
   }
-);
-router.get(
-  "/userDetails",
-  multer().none(),
-  CheckAuthToken,
-  async (req: any, res: any) => {
-    try {
-      const Cache_info = await redis.get(req.user_id);
-      if (Cache_info) {
-        return res.status(200).json({
-          user: JSON.parse(Cache_info),
-          success: true,
-          message: "User found in cache",
-        });
-      } else {
-        const user = await database.user.findUnique({
-          where: {
-            id: req.user_id,
-          },
-          include: {
-            followers: true,
-            following: true,
-          },
-        });
-        // // // // console.log(user);
-        if (!user) {
-          return res
-            .status(400)
-            .json({ message: "User not found", success: false });
-        }
-        await redis.set(req.user_id, JSON.stringify(user), "EX", 360);
-        return res.status(200).json({ user, success: true });
-      }
-    } catch (error) {
-      // // // console.log(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error while getting user details",
+});
+router.get("/userDetails", multer().none(), CheckAuthToken, async (req: any, res: any) => {
+  try {
+    const Cache_info = await redis.get(req.user_id);
+    if (Cache_info) {
+      return res.status(200).json({
+        user: JSON.parse(Cache_info),
+        success: true,
+        message: "User found in cache",
       });
-    }
-  }
-);
-router.put(
-  "/updateUserDetails",
-  CheckAuthToken,
-  Profile_Picture_Uploader,
-  async (req: any, res: any) => {
-    try {
-      // // // console.log(req.body);
+    } else {
       const user = await database.user.findUnique({
-        where: { id: req.user_id },
-      });
-      if (!user) {
-        return res
-          .status(400)
-          .json({ message: "User not found", success: false });
-      }
-      const imageArr = req.files;
-      const Cache_Key = req.user_id;
-      await DeleteSpecificDataInRedis(Cache_Key);
-      const { UserName, FullName, Email, ProfileBanner_Color, ProfileBgColor } =
-        req.body;
-      const update_user_info = {
-        UserName: user.UserName as string,
-        FullName: user.FullName as string,
-        Email: user.Email as string,
-        Profile_Picture: user.Profile_Picture as string,
-        ProfileBanner_Img: user.ProfileBanner_Img as string,
-        ProfileBanner_Color: user.ProfileBanner_Color as string,
-        ProfileBgColor: user.ProfileBgColor as string,
-      };
-      // // // console.log("update_user_info", update_user_info);
-      if (UserName !== "") update_user_info.UserName = UserName;
-      if (FullName !== "") update_user_info.FullName = FullName;
-      if (Email !== "") update_user_info.Email = Email;
-      if (ProfileBgColor !== "")
-        update_user_info.ProfileBgColor = ProfileBgColor;
-      if (ProfileBanner_Color !== "")
-        update_user_info.ProfileBanner_Color = ProfileBanner_Color;
-
-      if (imageArr.profilePicture || imageArr.ProfileBannerImage) {
-        if (!imageArr.ProfileBannerImage && imageArr.profilePicture) {
-          const BufferProfilePicture = Buffer.from(
-            imageArr.profilePicture[0].buffer
-          ).toString("base64");
-          const CloudProfilePicture: any =
-            await Upload_Image_In_Compressed_Format(
-              BufferProfilePicture,
-              96,
-              96
-            );
-          if (!CloudProfilePicture) {
-            return console.error("Image upload failed");
-          }
-          update_user_info.Profile_Picture =
-            CloudProfilePicture?.secure_url as any;
-
-          const updated_user = await database.user.update({
-            where: {
-              id: req.user_id,
-            },
-            data: update_user_info,
-          });
-
-          return res.status(200).json({
-            success: true,
-            message: "User details updated successfully",
-            user: updated_user,
-          });
-        } else if (!imageArr.profilePicture && imageArr.ProfileBannerImage) {
-          const BufferBannerImage = Buffer.from(
-            imageArr.ProfileBannerImage[0].buffer
-          ).toString("base64");
-          const CloudBannerImage: any = await Upload_Image_In_Compressed_Format(
-            BufferBannerImage,
-            150,
-            500
-          );
-          if (!CloudBannerImage) {
-            return console.error("Image upload failed");
-          }
-          update_user_info.ProfileBanner_Img =
-            CloudBannerImage?.secure_url as any;
-
-          const updated_user = await database.user.update({
-            where: {
-              id: req.user_id,
-            },
-            data: update_user_info,
-          });
-
-          return res.status(200).json({
-            success: true,
-            message: "User details updated successfully",
-            user: updated_user,
-          });
-        } else {
-          const BufferBannerImage = Buffer.from(
-            imageArr.ProfileBannerImage[0].buffer
-          ).toString("base64");
-          const CloudBannerImage: any = await Upload_Image_In_Compressed_Format(
-            BufferBannerImage,
-            1920,
-            400
-          );
-          if (!CloudBannerImage) {
-            return console.error("Image upload failed");
-          }
-          update_user_info.ProfileBanner_Img =
-            CloudBannerImage?.secure_url as any;
-          const BufferProfilePicture = Buffer.from(
-            imageArr.profilePicture[0].buffer
-          ).toString("base64");
-          const CloudProfilePicture: any =
-            await Upload_Image_In_Compressed_Format(
-              BufferProfilePicture,
-              96,
-              96
-            );
-          if (!CloudProfilePicture) {
-            return console.error("Image upload failed");
-          }
-          update_user_info.Profile_Picture =
-            CloudProfilePicture?.secure_url as any;
-          const updated_user = await database.user.update({
-            where: {
-              id: req.user_id,
-            },
-            data: update_user_info,
-          });
-
-          // // // console.log("updated user", updated_user);
-
-          return res.status(200).json({
-            success: true,
-            message: "User details updated successfully",
-            user: updated_user,
-          });
-        }
-      }
-
-      const updated_user = await database.user.update({
         where: {
           id: req.user_id,
         },
-        data: update_user_info,
+        include: {
+          followers: true,
+          following: true,
+        },
       });
-      return res.status(200).json({
-        success: true,
-        message: "User details updated successfully",
-        user: updated_user,
-      });
-    } catch (error) {
-      // // // console.log(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal server error while updating user details",
-      });
+      // // // // console.log(user);
+      if (!user) {
+        return res.status(400).json({ message: "User not found", success: false });
+      }
+      await redis.set(req.user_id, JSON.stringify(user), "EX", 360);
+      return res.status(200).json({ user, success: true });
     }
+  } catch (error) {
+    // // // console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while getting user details",
+    });
   }
-);
+});
+router.put("/updateUserDetails", CheckAuthToken, Profile_Picture_Uploader, async (req: any, res: any) => {
+  try {
+    // // // console.log(req.body);
+    const user = await database.user.findUnique({
+      where: { id: req.user_id },
+    });
+    if (!user) {
+      return res.status(400).json({ message: "User not found", success: false });
+    }
+    const imageArr = req.files;
+    const Cache_Key = req.user_id;
+    await DeleteSpecificDataInRedis(Cache_Key);
+    const { UserName, FullName, Email, ProfileBanner_Color, ProfileBgColor } = req.body;
+    const update_user_info = {
+      UserName: user.UserName as string,
+      FullName: user.FullName as string,
+      Email: user.Email as string,
+      Profile_Picture: user.Profile_Picture as string,
+      ProfileBanner_Img: user.ProfileBanner_Img as string,
+      ProfileBanner_Color: user.ProfileBanner_Color as string,
+      ProfileBgColor: user.ProfileBgColor as string,
+    };
+    // // // console.log("update_user_info", update_user_info);
+    if (UserName !== "") update_user_info.UserName = UserName;
+    if (FullName !== "") update_user_info.FullName = FullName;
+    if (Email !== "") update_user_info.Email = Email;
+    if (ProfileBgColor !== "") update_user_info.ProfileBgColor = ProfileBgColor;
+    if (ProfileBanner_Color !== "") update_user_info.ProfileBanner_Color = ProfileBanner_Color;
+
+    if (imageArr.profilePicture || imageArr.ProfileBannerImage) {
+      if (!imageArr.ProfileBannerImage && imageArr.profilePicture) {
+        const BufferProfilePicture = Buffer.from(imageArr.profilePicture[0].buffer).toString("base64");
+        const CloudProfilePicture: any = await Upload_Image_In_Compressed_Format(BufferProfilePicture, 96, 96);
+        if (!CloudProfilePicture) {
+          return console.error("Image upload failed");
+        }
+        update_user_info.Profile_Picture = CloudProfilePicture?.secure_url as any;
+
+        const updated_user = await database.user.update({
+          where: {
+            id: req.user_id,
+          },
+          data: update_user_info,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "User details updated successfully",
+          user: updated_user,
+        });
+      } else if (!imageArr.profilePicture && imageArr.ProfileBannerImage) {
+        const BufferBannerImage = Buffer.from(imageArr.ProfileBannerImage[0].buffer).toString("base64");
+        const CloudBannerImage: any = await Upload_Image_In_Compressed_Format(BufferBannerImage, 150, 500);
+        if (!CloudBannerImage) {
+          return console.error("Image upload failed");
+        }
+        update_user_info.ProfileBanner_Img = CloudBannerImage?.secure_url as any;
+
+        const updated_user = await database.user.update({
+          where: {
+            id: req.user_id,
+          },
+          data: update_user_info,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "User details updated successfully",
+          user: updated_user,
+        });
+      } else {
+        const BufferBannerImage = Buffer.from(imageArr.ProfileBannerImage[0].buffer).toString("base64");
+        const CloudBannerImage: any = await Upload_Image_In_Compressed_Format(BufferBannerImage, 1920, 400);
+        if (!CloudBannerImage) {
+          return console.error("Image upload failed");
+        }
+        update_user_info.ProfileBanner_Img = CloudBannerImage?.secure_url as any;
+        const BufferProfilePicture = Buffer.from(imageArr.profilePicture[0].buffer).toString("base64");
+        const CloudProfilePicture: any = await Upload_Image_In_Compressed_Format(BufferProfilePicture, 96, 96);
+        if (!CloudProfilePicture) {
+          return console.error("Image upload failed");
+        }
+        update_user_info.Profile_Picture = CloudProfilePicture?.secure_url as any;
+        const updated_user = await database.user.update({
+          where: {
+            id: req.user_id,
+          },
+          data: update_user_info,
+        });
+
+        // // // console.log("updated user", updated_user);
+
+        return res.status(200).json({
+          success: true,
+          message: "User details updated successfully",
+          user: updated_user,
+        });
+      }
+    }
+
+    const updated_user = await database.user.update({
+      where: {
+        id: req.user_id,
+      },
+      data: update_user_info,
+    });
+    return res.status(200).json({
+      success: true,
+      message: "User details updated successfully",
+      user: updated_user,
+    });
+  } catch (error) {
+    // // // console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while updating user details",
+    });
+  }
+});
 
 export default router;

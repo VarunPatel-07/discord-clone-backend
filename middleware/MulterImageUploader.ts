@@ -8,8 +8,7 @@ configDotenv();
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME as string,
   api_key: process.env.CLOUDINARY_CLOUD_IMAGE_UPLOADING_API_KEY as string,
-  api_secret: process.env
-    .CLOUDINARY_CLOUD_IMAGE_UPLOADING_API_SECRETE as string,
+  api_secret: process.env.CLOUDINARY_CLOUD_IMAGE_UPLOADING_API_SECRETE as string,
 });
 
 const Allowed_Formate = (req: any, file: any, cb: any) => {
@@ -50,6 +49,14 @@ export const Profile_Picture_Uploader = multer({
     maxCount: 1,
   },
 ]);
+export const Image_Uploader_In_Message = multer({
+  fileFilter: Allowed_Formate,
+}).fields([
+  {
+    name: "channelImages",
+    maxCount: 30,
+  },
+]);
 
 export const Cloudinary_Cloud_Image_Uploader = async (file: any) => {
   try {
@@ -62,11 +69,7 @@ export const Cloudinary_Cloud_Image_Uploader = async (file: any) => {
   }
 };
 
-export const Upload_Image_In_Compressed_Format = async (
-  base64Image: string,
-  height: number,
-  width: number
-) => {
+export const Upload_Image_In_Compressed_Format = async (base64Image: string, height: number, width: number) => {
   try {
     const buffer = Buffer.from(base64Image, "base64");
 
@@ -81,25 +84,19 @@ export const Upload_Image_In_Compressed_Format = async (
       processedImage = buffer; // Keep the original GIF format
     } else {
       // Resize and convert to WebP
-      processedImage = await sharp(buffer)
-        .resize({ width, height })
-        .webp()
-        .toBuffer();
+      processedImage = await sharp(buffer).resize({ width, height }).webp().toBuffer();
     }
 
     // Function to upload image from buffer
     const uploadFromBuffer = (buffer: Buffer) => {
       return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { resource_type: "auto" },
-          (error: any, result: any) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve(result);
-            }
+        const uploadStream = cloudinary.uploader.upload_stream({ resource_type: "auto" }, (error: any, result: any) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
           }
-        );
+        });
         streamifier.createReadStream(buffer).pipe(uploadStream);
       });
     };
@@ -109,6 +106,16 @@ export const Upload_Image_In_Compressed_Format = async (
     return response;
   } catch (error) {
     // // console.log("Error while processing image", error);
+  }
+};
+
+export const Upload_Image_InTheMessage = async (base64Image: string) => {
+  try {
+    const buffer = Buffer.from(base64Image, "base64");
+    const res = await Cloudinary_Cloud_Image_Uploader(buffer);
+    console.log(res);
+  } catch (error) {
+    console.log(error);
   }
 };
 
