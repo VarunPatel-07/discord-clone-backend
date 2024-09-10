@@ -6,7 +6,6 @@ import { body, validationResult } from "express-validator";
 import CryptoJS from "crypto-js";
 import redis from "../Redis";
 import { StoreDataInRedis } from "../Helper/StorDataInRedis";
-import { Image_Uploader_In_Message } from "../../middleware/MulterImageUploader";
 
 const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
 

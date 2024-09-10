@@ -49,12 +49,12 @@ export const Profile_Picture_Uploader = multer({
     maxCount: 1,
   },
 ]);
-export const Image_Uploader_In_Message = multer({
+export const CloudImageUploader = multer({
   fileFilter: Allowed_Formate,
 }).fields([
   {
-    name: "channelImages",
-    maxCount: 30,
+    name: "Image",
+    maxCount: 1,
   },
 ]);
 
@@ -124,4 +124,5 @@ module.exports = {
   Server__Image__Uploader,
   Upload_Image_In_Compressed_Format,
   Profile_Picture_Uploader,
+  CloudImageUploader,
 };
