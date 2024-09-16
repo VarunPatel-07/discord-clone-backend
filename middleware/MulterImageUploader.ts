@@ -58,16 +58,14 @@ export const CloudImageUploader = multer({
   },
 ]);
 
-export const Cloudinary_Cloud_Image_Uploader = async (file: any) => {
-  try {
-    const response = await cloudinary.uploader.upload(file, {
-      resource_type: "auto",
-    });
-    return response;
-  } catch (error) {
-    // // // console.log(error);
-  }
-};
+export const CloudFilesUploader = multer({
+  fileFilter: Allowed_Formate,
+}).fields([
+  {
+    name: "File",
+    maxCount: 1,
+  },
+]);
 
 export const Upload_Image_In_Compressed_Format = async (base64Image: string, height: number, width: number) => {
   try {
@@ -109,20 +107,32 @@ export const Upload_Image_In_Compressed_Format = async (base64Image: string, hei
   }
 };
 
-export const Upload_Image_InTheMessage = async (base64Image: string) => {
+export const UploadMultiImageToTheCloudFunction = async (base64Image: string) => {
   try {
-    const buffer = Buffer.from(base64Image, "base64");
-    const res = await Cloudinary_Cloud_Image_Uploader(buffer);
-    console.log(res);
+    const dataURI = `data:image/jpeg;base64,${base64Image}`;
+    const response = await cloudinary.uploader.upload(dataURI, { resource_type: "auto" });
+    return response;
+  } catch (error) {
+    console.log("error form the UploadMultiImageToTheCloudFunction", error);
+  }
+};
+
+export const UploadFilesToTheCloudFunction = async (base64File: string) => {
+  try {
+    const dataURI = `data:application/pdf;base64,${base64File}`;
+    const response = await cloudinary.uploader.upload(dataURI, { resource_type: "raw" });
+    return response;
   } catch (error) {
     console.log(error);
   }
 };
 
 module.exports = {
-  Cloudinary_Cloud_Image_Uploader,
   Server__Image__Uploader,
   Upload_Image_In_Compressed_Format,
   Profile_Picture_Uploader,
   CloudImageUploader,
+  CloudFilesUploader,
+  UploadMultiImageToTheCloudFunction,
+  UploadFilesToTheCloudFunction,
 };

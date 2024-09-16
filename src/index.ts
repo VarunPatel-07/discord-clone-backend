@@ -19,7 +19,7 @@ import Message from "./routes/Messages";
 import VideoCall from "./routes/VideoCall";
 import Notification from "./routes/Notification";
 import OneToOneMessage from "./routes/OneToOneMessage";
-import CloudImageUploader from "./routes/upload/StoreImagesOnTheCloud";
+import CloudUploader from "./routes/upload/CloudUploader";
 
 app.use(
   cors({
@@ -59,7 +59,7 @@ app.use("/app/api/Messages", Message);
 app.use("/app/api/OneToOneMessage", OneToOneMessage);
 app.use("/app/api/VideoCall", VideoCall);
 app.use("/app/api/Notification", Notification);
-app.use("/app/api/uploader/images", CloudImageUploader);
+app.use("/app/api/cloud/uploader", CloudUploader);
 
 // Passport.js initialization to use Google authentication
 app.use(passport.initialize());

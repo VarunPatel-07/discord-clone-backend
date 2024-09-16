@@ -6,6 +6,16 @@ import { body, validationResult } from "express-validator";
 import CryptoJS from "crypto-js";
 import redis from "../Redis";
 import { StoreDataInRedis } from "../Helper/StorDataInRedis";
+import { CloudImageUploader, UploadMultiImageToTheCloudFunction } from "../../middleware/MulterImageUploader";
+
+interface ImageFilesProps {
+  fieldname: String;
+  originalname: String;
+  encoding: String;
+  mimetype: String;
+  buffer: Buffer;
+  size: Number;
+}
 
 const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
 
@@ -83,6 +93,7 @@ routes.post(
           FileURL: "", // Assuming no file is attached
           memberId: Member.id, // Member ID should be valid
           channelId: FindChannel?.id || "", // Ensure channel ID is a valid string
+          ImageUrl: "",
         },
         include: {
           member: {
@@ -408,6 +419,7 @@ routes.put(
         replying_to_message,
         replying_to_user_member_id,
         replying_message_message_id,
+        replyingImage,
       } = req.body;
 
       const result = validationResult(req);
@@ -476,7 +488,8 @@ routes.put(
           replyingMessage: replying_to_message,
           replyingMessageMessageId: replying_message_message_id,
           replyingToUser_MemberId: replying_to_user_member_id,
-
+          replyingImage: replyingImage,
+          ImageUrl: "",
           FileURL: "",
         },
         include: {
@@ -508,5 +521,193 @@ routes.put(
     }
   }
 );
+routes.post(
+  "/messageWithImages",
+  CheckAuthToken,
+  multer().none(),
+  [
+    body("server_id").exists().withMessage("server_id is required"),
+    body("channel_id").exists().withMessage("channel_id is require"),
+    body("stringyFyImagesArray").exists().withMessage("stringyFyImagesArray is required"),
+  ],
+  async (req: any, res: any) => {
+    try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
+      const { server_id, channel_id, content, stringyFyImagesArray } = req.body;
+      const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+      const find_Server = await database.server.findUnique({
+        where: {
+          id: server_id,
+        },
+        include: {
+          channels: true,
+          members: true,
+        },
+      });
+      if (!find_Server) {
+        return res.status(404).json({
+          success: false,
+          message: "no such server found",
+        });
+      }
+      if (!find_Server.channels.some((channel) => channel.id === channel_id))
+        return res.status(404).json({
+          success: false,
+          message: "no such channel found in the server",
+        });
 
+      const Member = find_Server.members.find((member) => member.userId === req.user_id);
+      if (!Member)
+        return res.status(404).json({
+          success: false,
+          message: "no such members found in the server",
+        });
+      const encryptedMessage_replay = CryptoJS.AES.encrypt(content, SECRET_KEY).toString();
+      const CreateChat = await database.groupMessage.create({
+        data: {
+          channelId: channel_id,
+          memberId: Member.id,
+          ImageUrl: stringyFyImagesArray,
+          content: content === "" ? "" : encryptedMessage_replay,
+          FileURL: "",
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: {
+            include: {
+              server: {
+                include: {
+                  members: true,
+                },
+              },
+            },
+          },
+          replyingToUser: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Message sent successfully",
+        data: CreateChat,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while creating message with images chat",
+      });
+    }
+  }
+);
+routes.post(
+  "/sendFilesInTheChat",
+  CheckAuthToken,
+  multer().none(),
+  [
+    body("server_id").exists().withMessage("server_id is required"),
+    body("channel_id").exists().withMessage("channel_id is require"),
+    body("stringyFyFilesArray").exists().withMessage("stringyFyImagesArray is required"),
+  ],
+  async (req: any, res: any) => {
+    try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
+      const { server_id, channel_id, content, stringyFyFilesArray } = req.body;
+      console.log(stringyFyFilesArray);
+      const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+      const find_Server = await database.server.findUnique({
+        where: {
+          id: server_id,
+        },
+        include: {
+          channels: true,
+          members: true,
+        },
+      });
+      if (!find_Server) {
+        return res.status(404).json({
+          success: false,
+          message: "no such server found",
+        });
+      }
+      if (!find_Server.channels.some((channel) => channel.id === channel_id))
+        return res.status(404).json({
+          success: false,
+          message: "no such channel found in the server",
+        });
+
+      const Member = find_Server.members.find((member) => member.userId === req.user_id);
+      if (!Member)
+        return res.status(404).json({
+          success: false,
+          message: "no such members found in the server",
+        });
+      const encryptedMessage_replay = CryptoJS.AES.encrypt(content, SECRET_KEY).toString();
+      const CreateChat = await database.groupMessage.create({
+        data: {
+          channelId: channel_id,
+          memberId: Member.id,
+          ImageUrl: "",
+          content: content === "" ? "" : encryptedMessage_replay,
+          FileURL: stringyFyFilesArray,
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          channel: {
+            include: {
+              server: {
+                include: {
+                  members: true,
+                },
+              },
+            },
+          },
+          replyingToUser: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Message sent successfully",
+        data: CreateChat,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while creating message with images chat",
+      });
+    }
+  }
+);
 export default routes;

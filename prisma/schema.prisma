@@ -154,6 +154,7 @@ model GroupMessage {
   id        String  @id @default(uuid())
   content   String  @db.Text
   FileURL   String  @db.Text
+  ImageUrl  String  @db.Text
   IsEdited  Boolean @default(false)
   IsDeleted Boolean @default(false)
   DeletedBy String  @default("") @db.VarChar(255)
@@ -167,6 +168,7 @@ model GroupMessage {
   replyingToUser_MemberId  String?
   replyingToUser           Member? @relation("ReplyingToUser", fields: [replyingToUser_MemberId], references: [id], onDelete: Cascade)
   replyingMessageMessageId String? @db.Text
+  replyingImage            String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
