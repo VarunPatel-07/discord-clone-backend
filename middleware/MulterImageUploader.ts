@@ -59,6 +59,7 @@ export const CloudImageUploader = multer({
 ]);
 
 export const CloudFilesUploader = multer({
+  storage: multer.memoryStorage(), // Use memory storage to access file buffers
   fileFilter: Allowed_Formate,
 }).fields([
   {

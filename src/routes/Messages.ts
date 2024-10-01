@@ -7,6 +7,7 @@ import CryptoJS from "crypto-js";
 import redis from "../Redis";
 import { StoreDataInRedis } from "../Helper/StorDataInRedis";
 import { CloudImageUploader, UploadMultiImageToTheCloudFunction } from "../../middleware/MulterImageUploader";
+import { MessageType } from "../enum/enum";
 
 interface ImageFilesProps {
   fieldname: String;
@@ -306,7 +307,7 @@ routes.put("/EditMessage", CheckAuthToken, multer().none(), async (req: any, res
   }
 });
 // * (4) creating a route for Deleting Message
-routes.put("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, res: any) => {
+routes.delete("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, res: any) => {
   try {
     const { message_id } = req.query;
     if (!message_id) return;
@@ -347,6 +348,8 @@ routes.put("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, r
           IsDeleted: true,
           DeletedBy: req.user_id,
           content: "this message has been deleted",
+          ImageUrl: "",
+          FileURL: "",
         },
         include: {
           member: {
@@ -372,6 +375,8 @@ routes.put("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, r
             IsDeleted: true,
             DeletedBy: req.user_id,
             content: "this message has been deleted by admin",
+            ImageUrl: "",
+            FileURL: "",
           },
           include: {
             member: {
@@ -528,7 +533,7 @@ routes.post(
   [
     body("server_id").exists().withMessage("server_id is required"),
     body("channel_id").exists().withMessage("channel_id is require"),
-    body("stringyFyImagesArray").exists().withMessage("stringyFyImagesArray is required"),
+    body("imageUrl").exists().withMessage("stringyFyImagesArray is required"),
   ],
   async (req: any, res: any) => {
     try {
@@ -536,7 +541,8 @@ routes.post(
       if (!result.isEmpty()) {
         return res.status(400).json({ errors: result });
       }
-      const { server_id, channel_id, content, stringyFyImagesArray } = req.body;
+      const { server_id, channel_id, content, imageUrl, imageMessageId } = req.body;
+      console.log(imageMessageId);
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {
@@ -570,42 +576,103 @@ routes.post(
           message: "no such members found in the server",
         });
       const encryptedMessage_replay = CryptoJS.AES.encrypt(content, SECRET_KEY).toString();
-      const CreateChat = await database.groupMessage.create({
-        data: {
-          channelId: channel_id,
-          memberId: Member.id,
-          ImageUrl: stringyFyImagesArray,
-          content: content === "" ? "" : encryptedMessage_replay,
-          FileURL: "",
-        },
-        include: {
-          member: {
-            include: {
-              user: true,
-            },
+      const stringyFyImagesArray = JSON.stringify([imageUrl]);
+      if (imageMessageId == "") {
+        const CreateChat = await database.groupMessage.create({
+          data: {
+            channelId: channel_id,
+            memberId: Member.id,
+            ImageUrl: stringyFyImagesArray,
+            content: content === "" ? "" : encryptedMessage_replay,
+            FileURL: "",
+            MessageType: MessageType.IMAGE || "IMAGE",
           },
-          channel: {
-            include: {
-              server: {
-                include: {
-                  members: true,
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            channel: {
+              include: {
+                server: {
+                  include: {
+                    members: true,
+                  },
                 },
               },
             },
-          },
-          replyingToUser: {
-            include: {
-              user: true,
+            replyingToUser: {
+              include: {
+                user: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      return res.status(200).json({
-        success: true,
-        message: "Message sent successfully",
-        data: CreateChat,
-      });
+        return res.status(200).json({
+          success: true,
+          message: "Message sent successfully",
+          data: CreateChat,
+        });
+      } else {
+        const message = await database.groupMessage.findUnique({
+          where: {
+            id: imageMessageId,
+          },
+        });
+        if (message) {
+          let previousImages;
+
+          if (typeof message.ImageUrl === "string") {
+            // If ImageUrl is a string, parse it
+            previousImages = JSON.parse(message.ImageUrl);
+          } else {
+            // If ImageUrl is already an array, use it directly
+            previousImages = message.ImageUrl;
+          }
+
+          // Add the new image URL to the array
+          previousImages.push(imageUrl);
+
+          // Convert the array back to a JSON string before updating
+          const updatedMessage = await database.groupMessage.update({
+            where: {
+              id: imageMessageId,
+            },
+            data: {
+              ImageUrl: JSON.stringify(previousImages), // Convert array back to JSON string
+            },
+            include: {
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+              channel: {
+                include: {
+                  server: {
+                    include: {
+                      members: true,
+                    },
+                  },
+                },
+              },
+              replyingToUser: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          });
+
+          return res.status(200).json({
+            success: true,
+            message: "Message sent successfully",
+            data: updatedMessage,
+          });
+        }
+      }
     } catch (error) {
       console.log(error);
       return res.status(500).json({

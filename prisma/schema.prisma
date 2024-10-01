@@ -75,6 +75,12 @@ enum NotificationType {
   ERROR
 }
 
+enum MessageType {
+  IMAGE
+  FILE
+  MESSAGE
+}
+
 model Server {
   id                String  @id @default(uuid())
   name              String  @db.VarChar(255)
@@ -151,24 +157,24 @@ model Channel {
 }
 
 model GroupMessage {
-  id        String  @id @default(uuid())
-  content   String  @db.Text
-  FileURL   String  @db.Text
-  ImageUrl  String  @db.Text
-  IsEdited  Boolean @default(false)
-  IsDeleted Boolean @default(false)
-  DeletedBy String  @default("") @db.VarChar(255)
-  Is_Reply  Boolean @default(false)
-
+  id                       String      @id @default(uuid())
+  content                  String      @db.Text
+  FileURL                  String      @db.Text
+  ImageUrl                 String      @db.Text
+  IsEdited                 Boolean     @default(false)
+  IsDeleted                Boolean     @default(false)
+  DeletedBy                String      @default("") @db.VarChar(255)
+  Is_Reply                 Boolean     @default(false)
+  MessageType              MessageType @default(MESSAGE)
   memberId                 String
-  member                   Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member                   Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   channelId                String
-  channel                  Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  replyingMessage          String? @db.Text
+  channel                  Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  replyingMessage          String?     @db.Text
   replyingToUser_MemberId  String?
-  replyingToUser           Member? @relation("ReplyingToUser", fields: [replyingToUser_MemberId], references: [id], onDelete: Cascade)
-  replyingMessageMessageId String? @db.Text
-  replyingImage            String? @db.Text
+  replyingToUser           Member?     @relation("ReplyingToUser", fields: [replyingToUser_MemberId], references: [id], onDelete: Cascade)
+  replyingMessageMessageId String?     @db.Text
+  replyingImage            String?     @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

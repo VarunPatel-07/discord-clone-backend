@@ -143,6 +143,9 @@ io.on("connection", (socket) => {
   socket.on("NewMessageHasBeenSent", (data) => {
     socket.broadcast.emit("EmitNewMessageHasBeenSent", data);
   });
+  socket.on("FilesHasBeenSharedSuccessful", (data) => {
+    socket.broadcast.emit("EmitFilesHasBeenSharedSuccessful", data);
+  });
 
   socket.on("AnUserBlockedSuccessfully", () => {
     socket.broadcast.emit("EmitAnUserBlockedSuccessfully");
