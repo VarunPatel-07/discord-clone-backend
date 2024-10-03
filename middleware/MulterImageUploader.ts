@@ -22,10 +22,37 @@ const Allowed_Formate = (req: any, file: any, cb: any) => {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
   ];
+
   if (allowedFormats.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error("Invalid file format."));
+  }
+};
+
+const Allowed_Document_Formate = (req: any, file: any, cb: any) => {
+  const allowedDocumentFormats = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", // Excel (.xls)
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/csv",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-powerpoint",
+    "application/rtf",
+    "text/plain",
+    "application/zip",
+    "text/markdown",
+    "text/html",
+    "text/css",
+    "application/octet-stream",
+  ];
+  console.log(file);
+  if (allowedDocumentFormats.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid File Format."));
   }
 };
 
@@ -60,7 +87,7 @@ export const CloudImageUploader = multer({
 
 export const CloudFilesUploader = multer({
   storage: multer.memoryStorage(), // Use memory storage to access file buffers
-  fileFilter: Allowed_Formate,
+  fileFilter: Allowed_Document_Formate,
 }).fields([
   {
     name: "File",
@@ -118,10 +145,20 @@ export const UploadMultiImageToTheCloudFunction = async (base64Image: string) =>
   }
 };
 
-export const UploadFilesToTheCloudFunction = async (base64File: string) => {
+const sanitizeFileName = (fileName: string) => {
+  return fileName.replace(/\s+/g, "_").replace(/[^\w.-]+/g, "");
+};
+
+export const UploadFilesToTheCloudFunction = async (base64File: string, originalFileName: string) => {
   try {
     const dataURI = `data:application/pdf;base64,${base64File}`;
-    const response = await cloudinary.uploader.upload(dataURI, { resource_type: "raw" });
+    const response = await cloudinary.uploader.upload(dataURI, {
+      resource_type: "raw",
+      folder: "discord-file-storage",
+      use_filename: true, // This will use the original file name
+      unique_filename: false, // Ensures that the file name does not get changed
+      public_id: sanitizeFileName(originalFileName.split(".")[0]),
+    });
     return response;
   } catch (error) {
     console.log(error);

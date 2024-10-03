@@ -689,7 +689,7 @@ routes.post(
   [
     body("server_id").exists().withMessage("server_id is required"),
     body("channel_id").exists().withMessage("channel_id is require"),
-    body("stringyFyFilesArray").exists().withMessage("stringyFyImagesArray is required"),
+    body("stringifyFilesInfo").exists().withMessage("stringyFyImagesArray is required"),
   ],
   async (req: any, res: any) => {
     try {
@@ -697,8 +697,7 @@ routes.post(
       if (!result.isEmpty()) {
         return res.status(400).json({ errors: result });
       }
-      const { server_id, channel_id, content, stringyFyFilesArray } = req.body;
-      console.log(stringyFyFilesArray);
+      const { server_id, channel_id, content, stringifyFilesInfo } = req.body;
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {
@@ -738,7 +737,8 @@ routes.post(
           memberId: Member.id,
           ImageUrl: "",
           content: content === "" ? "" : encryptedMessage_replay,
-          FileURL: stringyFyFilesArray,
+          FileURL: stringifyFilesInfo,
+          MessageType: "FILE",
         },
         include: {
           member: {

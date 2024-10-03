@@ -6,7 +6,6 @@ import {
   UploadFilesToTheCloudFunction,
   UploadMultiImageToTheCloudFunction,
 } from "../../../middleware/MulterImageUploader";
-import { authenticateGoogle, uploadFilesToTheGoogleDrive } from "../../../middleware/UploadFilesToGoogleDrive";
 const routes = express.Router();
 
 routes.post("/UploadImageToCloud", CloudImageUploader, CheckAuthToken, async (req: any, res: any) => {
@@ -40,11 +39,31 @@ routes.post("/UploadImageToCloud", CloudImageUploader, CheckAuthToken, async (re
 });
 
 routes.post("/uploadFilesToTheCloud", CheckAuthToken, CloudFilesUploader, async (req: any, res: any) => {
-  console.log(req.files);
   try {
-    const auth = authenticateGoogle();
-    const response = await uploadFilesToTheGoogleDrive(req.files, auth);
-    console.log(response);
+    const filesArray = req.files;
+    const fileType = filesArray?.File[0]?.mimetype;
+    console.log(fileType);
+    if (!filesArray) return;
+    if (filesArray?.File[0]?.size > 10485760 * 5) {
+      return res.json({ message: "file is To big To upload" });
+    }
+    const fileBuffer = Buffer.from(filesArray.File[0].buffer).toString("base64");
+    const fileInfo = await UploadFilesToTheCloudFunction(
+      fileBuffer,
+      filesArray?.File[0]?.originalname || filesArray?.File[0]?.name
+    );
+
+    const Data = {
+      fileInfo,
+      fileType,
+    };
+    if (fileInfo?.secure_url) {
+      return res.status(200).json({
+        message: "the file uploaded successfully",
+        success: true,
+        data: Data,
+      });
+    }
   } catch (error) {
     return res.status(500).json({
       success: false,
