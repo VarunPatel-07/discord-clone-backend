@@ -42,7 +42,6 @@ routes.post("/uploadFilesToTheCloud", CheckAuthToken, CloudFilesUploader, async 
   try {
     const filesArray = req.files;
     const fileType = filesArray?.File[0]?.mimetype;
-    console.log(fileType);
     if (!filesArray) return;
     if (filesArray?.File[0]?.size > 10485760 * 5) {
       return res.json({ message: "file is To big To upload" });

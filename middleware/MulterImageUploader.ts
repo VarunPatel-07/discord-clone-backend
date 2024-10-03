@@ -47,8 +47,19 @@ const Allowed_Document_Formate = (req: any, file: any, cb: any) => {
     "text/html",
     "text/css",
     "application/octet-stream",
+    "application/javascript",
+    "application/typescript",
+    "application/json",
+    "application/x-python",
+    "text/x-java-source",
+    "text/x-c",
+    "text/x-c++src",
+    "application/x-ruby",
+    "application/x-httpd-php",
+    "application/xml",
+    "text/x-go",
+    "text/x-swift",
   ];
-  console.log(file);
   if (allowedDocumentFormats.includes(file.mimetype)) {
     cb(null, true);
   } else {
