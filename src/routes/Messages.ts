@@ -698,6 +698,7 @@ routes.post(
         return res.status(400).json({ errors: result });
       }
       const { server_id, channel_id, content, stringifyFilesInfo } = req.body;
+      
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {
