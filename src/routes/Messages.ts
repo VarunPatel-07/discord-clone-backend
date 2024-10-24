@@ -6,7 +6,7 @@ import { body, validationResult } from "express-validator";
 import CryptoJS from "crypto-js";
 import redis from "../Redis";
 import { StoreDataInRedis } from "../Helper/StorDataInRedis";
-import { CloudImageUploader, UploadMultiImageToTheCloudFunction } from "../../middleware/MulterImageUploader";
+
 import { MessageType } from "../enum/enum";
 
 interface ImageFilesProps {
@@ -307,7 +307,7 @@ routes.put("/EditMessage", CheckAuthToken, multer().none(), async (req: any, res
   }
 });
 // * (4) creating a route for Deleting Message
-routes.delete("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, res: any) => {
+routes.put("/DeleteMessage", CheckAuthToken, multer().none(), async (req: any, res: any) => {
   try {
     const { message_id } = req.query;
     if (!message_id) return;
@@ -698,7 +698,7 @@ routes.post(
         return res.status(400).json({ errors: result });
       }
       const { server_id, channel_id, content, stringifyFilesInfo } = req.body;
-      
+
       const MatchTheCacheKey = `ChannelMessages:${server_id}:${channel_id}:page-*`;
       const CacheInfo = await redis.keys(MatchTheCacheKey);
       for (const key of CacheInfo) {

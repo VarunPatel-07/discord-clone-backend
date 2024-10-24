@@ -6,18 +6,26 @@ import redis from "../Redis";
 import { StoreDataInRedis } from "../Helper/StorDataInRedis";
 import { body, query, validationResult } from "express-validator";
 const routes = express.Router();
+import CryptoJS from "crypto-js";
+
+const SECRET_KEY = process.env.ENCRYPTION_KEY as string;
 
 // * (1) creating a route for creating one to one chat
 
 routes.post("/CreateOneToOneChat", CheckAuthToken, multer().none(), async (req: any, res: any) => {
   try {
+    const Cache_Key = `OneToOneConversation_${req.user_id}`;
+    await redis.del(Cache_Key);
     const { receiver_id } = req.body;
     if (receiver_id === req.user_id) return;
     const sender_id = req.user_id;
 
     const FindChat = await database.oneToOneConversation.findFirst({
       where: {
-        AND: [{ SenderId: sender_id }, { ReceiverId: receiver_id }],
+        OR: [
+          { AND: [{ SenderId: sender_id }, { ReceiverId: receiver_id }] },
+          { AND: [{ SenderId: receiver_id }, { ReceiverId: sender_id }] },
+        ],
       },
       include: {
         DirectMessages: true,
@@ -25,6 +33,8 @@ routes.post("/CreateOneToOneChat", CheckAuthToken, multer().none(), async (req: 
         Sender: true,
       },
     });
+
+    console.log(FindChat);
 
     if (FindChat) {
       return res.status(200).json({
@@ -116,7 +126,9 @@ routes.get("/FetchConversationMessages/:conversation_id", CheckAuthToken, async 
 
     const Cache_Key = `ConversationMessages:${conversation_id}:Page-${Page}`;
     const Cache_Data = await redis.get(Cache_Key);
+
     if (Cache_Data) {
+      console.log("Cache_Data", JSON.parse(Cache_Data));
       return res.status(200).json({
         success: true,
         message: "Conversation messages fetched successfully from cache",
@@ -150,7 +162,7 @@ routes.get("/FetchConversationMessages/:conversation_id", CheckAuthToken, async 
         Receiver: true,
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
       skip: (Page - 1) * Limit,
       take: Limit,
@@ -161,9 +173,12 @@ routes.get("/FetchConversationMessages/:conversation_id", CheckAuthToken, async 
         ConversationId: conversation_id,
       },
     });
+    const TotalPages = Math.ceil(TotalMessages / Limit);
+    const hasMoreData = Page < TotalPages;
     const Data = {
       Message,
       TotalMessages,
+      hasMoreData,
     };
 
     StoreDataInRedis(Cache_Key, Data);
@@ -192,6 +207,13 @@ routes.post(
     try {
       const { conversation_id } = req.params;
       if (!conversation_id) return res.status(400).json({ success: false, message: "conversation_id is required" });
+
+      const MatchTheCacheKey = `ConversationMessages:${conversation_id}:Page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+
       const { message } = req.body;
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -210,13 +232,17 @@ routes.post(
       }
       const receiver_id =
         FindConversation.SenderId === req.user_id ? FindConversation.ReceiverId : FindConversation.SenderId;
+
+      const encryptedContent = CryptoJS.AES.encrypt(message, SECRET_KEY).toString();
+
       const Message = await database.directMessages.create({
         data: {
-          content: message,
+          content: encryptedContent,
           FileURL: "",
           ConversationId: conversation_id,
           SenderId: req.user_id,
           ReceiverId: receiver_id,
+          ImageUrl: "",
         },
         include: {
           Sender: true,
@@ -238,5 +264,162 @@ routes.post(
     }
   }
 );
+routes.put("/deleteSpecificMessage", CheckAuthToken, async (req: any, res: any) => {
+  try {
+    const { message_id, conversation_id } = req.query;
+    if (!message_id || !conversation_id)
+      return res.status(404).json({ message: "conversation_id or message_id is required to delete a message" });
+    const MatchTheCacheKey = `ConversationMessages:${conversation_id}:Page-*`;
+    const CacheInfo = await redis.keys(MatchTheCacheKey);
+    for (const key of CacheInfo) {
+      await redis.del(key);
+    }
+
+    const FindConversation = await database.oneToOneConversation.findUnique({
+      where: {
+        id: conversation_id,
+      },
+    });
+    if (!FindConversation) return res.status(404).json({ message: "no such conversation found" });
+    const deletedMessage = await database.directMessages.update({
+      where: {
+        id: message_id,
+      },
+      data: {
+        content: "this message has been deleted",
+        IsDeleted: true,
+        DeletedBy: req.user_id,
+        FileURL: "",
+        ImageUrl: "",
+      },
+      include: {
+        // Conversation: true,
+        Receiver: true,
+        Sender: true,
+      },
+    });
+    return res
+      .status(200)
+      .json({ message: "conversation updated successfully", updatedMessage: deletedMessage, success: true });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while updating message in conversation",
+    });
+  }
+});
+
+routes.put(
+  "/editMessage",
+  CheckAuthToken,
+  multer().none(),
+  [body("editedMessage").exists().withMessage("editedMessage is required")],
+  async (req: any, res: any) => {
+    try {
+      const { editedMessage } = req.body;
+      const { message_id, conversation_id } = req.query;
+      if (!message_id || !conversation_id)
+        return res.status(404).json({ message: "conversation_id or message_id is required to delete a message" });
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.status(400).json({ errors: result });
+      }
+
+      const MatchTheCacheKey = `ConversationMessages:${conversation_id}:Page-*`;
+      const CacheInfo = await redis.keys(MatchTheCacheKey);
+      for (const key of CacheInfo) {
+        await redis.del(key);
+      }
+
+      const FindConversation = await database.oneToOneConversation.findUnique({
+        where: {
+          id: conversation_id,
+        },
+      });
+      if (!FindConversation) return res.status(404).json({ message: "no such conversation exist" });
+
+      const encryptedContent = CryptoJS.AES.encrypt(editedMessage, SECRET_KEY).toString();
+
+      const updatedMessage = await database.directMessages.update({
+        where: {
+          id: message_id,
+        },
+        data: {
+          content: encryptedContent,
+          IsEdited: true,
+        },
+        include: {
+          Conversation: true,
+          Receiver: true,
+          Sender: true,
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        Data: updatedMessage,
+        message: "the message is updated successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error while editing a message",
+      });
+    }
+  }
+);
+
+routes.post("/replyMessage", CheckAuthToken, multer().none(), async (req: any, res: any) => {
+  try {
+    const { message, replyingMessageContent, replying_message_message_id, replyingUserUserID } = req.body;
+    const { conversation_id } = req.query;
+    const MatchTheCacheKey = `ConversationMessages:${conversation_id}:Page-*`;
+    const CacheInfo = await redis.keys(MatchTheCacheKey);
+    for (const key of CacheInfo) {
+      await redis.del(key);
+    }
+    const FindConversation = await database.oneToOneConversation.findUnique({
+      where: {
+        id: conversation_id,
+      },
+      include: {
+        Sender: true,
+        Recever: true,
+        DirectMessages: true,
+      },
+    });
+    if (!FindConversation) return res.json({ message: "no such conversation found" });
+
+    const encryptedContent = CryptoJS.AES.encrypt(message, SECRET_KEY).toString();
+    const receiver_id =
+      FindConversation?.Sender?.id === req?.user_id ? FindConversation?.ReceiverId : FindConversation?.SenderId;
+    const MessageReply = await database.directMessages.create({
+      data: {
+        IsMessageReply: true,
+        content: encryptedContent,
+        FileURL: "",
+        ImageUrl: "",
+        ConversationId: conversation_id,
+        ReceiverId: receiver_id,
+        SenderId: req?.user_id,
+        replyingMessage_MessageId: replying_message_message_id,
+        replyingMessageContent: replyingMessageContent,
+        replyingToUser_UserId: replyingUserUserID,
+      },
+      include: {
+        Conversation: true,
+        Receiver: true,
+        replyingToUser: true,
+        Sender: true,
+      },
+    });
+
+    return res.status(200).json({ message: "the message has been replied", success: true, data: MessageReply });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while replying a message",
+    });
+  }
+});
 
 export default routes;

@@ -23,7 +23,7 @@ import CloudUploader from "./routes/upload/CloudUploader";
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"], // Update with your frontend URL
+    origin: "*", // Update with your frontend URL
     credentials: true, // Allow cookies to be sent
   })
 );
@@ -78,7 +78,7 @@ const server = app.listen(Port, () => {
 const io = new SocketIOServer(server, {
   pingTimeout: 60000,
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: "*",
     credentials: true, // Ensure credentials are allowed
   },
 });
@@ -132,6 +132,9 @@ io.on("connection", (socket) => {
   socket.on("AnFollowerHasBeenRemoved", () => {
     socket.broadcast.emit("EmitAnFollowerHasBeenRemoved");
   });
+  socket.on("oneOnOneMessageUpdated", (data) => {
+    socket.broadcast.emit("EmitOneOnOneMessageUpdated", data);
+  });
 
   socket.on("StartTyping", (data) => {
     socket.broadcast.emit("EmitStartTyping", data);
@@ -158,6 +161,9 @@ io.on("connection", (socket) => {
   });
   socket.on("UserProfileUpdatedSuccessfully", () => {
     socket.broadcast.emit("EmitUserProfileUpdatedSuccessfully");
+  });
+  socket.on("NewMessageInOneOnOneConversation", (data) => {
+    socket.broadcast.emit("EmitNewMessageInOneOnOneConversation", data);
   });
 
   socket.on("SendMeetingIdToTheMemberOfTheServer", (data) => {

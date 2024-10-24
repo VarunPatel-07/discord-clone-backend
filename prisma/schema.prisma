@@ -47,6 +47,8 @@ model User {
   NotificationSent     Notification[] @relation("SentNotifications")
   NotificationReceived Notification[] @relation("ReceivedNotifications")
 
+  ReplyingToADirectMessage DirectMessages[] @relation("ReplyingMessageUser")
+
   @@unique([Email, UserName])
 }
 
@@ -213,14 +215,15 @@ model GroupConversation {
 }
 
 model DirectMessages {
-  id        String  @id @default(uuid())
-  content   String  @db.Text
-  FileURL   String  @db.Text
-  IsEdited  Boolean @default(false)
-  IsDeleted Boolean @default(false)
-
+  id             String               @id @default(uuid())
+  content        String               @db.Text
+  FileURL        String               @db.Text
+  IsEdited       Boolean              @default(false)
+  IsDeleted      Boolean              @default(false)
+  ImageUrl       String               @db.Text
   ConversationId String
   Conversation   OneToOneConversation @relation(fields: [ConversationId], references: [id], onDelete: Cascade)
+  IsMessageReply Boolean              @default(false)
 
   SenderId String
   Sender   User   @relation("DirectMessagesSender", fields: [SenderId], references: [id], onDelete: Cascade)
@@ -228,6 +231,13 @@ model DirectMessages {
   ReceiverId String
   Receiver   User   @relation("DirectMessagesReceiver", fields: [ReceiverId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  DeletedBy String @default("") @db.VarChar(255)
+
+  replyingMessageContent String? @db.Text
+  replyingToUser_UserId  String?
+  replyingToUser         User?   @relation("ReplyingMessageUser", fields: [replyingToUser_UserId], references: [id], onDelete: Cascade)
+
+  replyingMessage_MessageId String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 }

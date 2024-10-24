@@ -16,12 +16,7 @@ passport.use(
       callbackURL: process.env.SIGN_IN_WITH_GOOGLE_CALL_BACK_URL as string,
       scope: ["email", "profile"],
     },
-    async (
-      accessToken: string,
-      refreshToken: string,
-      profile: any,
-      done: any
-    ) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
         const FindUser = await database.user.findUnique({
           where: {
@@ -65,10 +60,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser((user, done) => {
   done(null, user as any);
 });
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["email", "profile"] })
-);
+router.get("/google", passport.authenticate("google", { scope: ["email", "profile"] }));
 
 router.get("/google/callback", passport.authenticate("google"), (req, res) => {
   if (!req.user) {
