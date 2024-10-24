@@ -23,7 +23,7 @@ import CloudUploader from "./routes/upload/CloudUploader";
 
 app.use(
   cors({
-    origin: "*", // Update with your frontend URL
+    origin: true, // Update with your frontend URL
     credentials: true, // Allow cookies to be sent
   })
 );
@@ -78,7 +78,7 @@ const server = app.listen(Port, () => {
 const io = new SocketIOServer(server, {
   pingTimeout: 60000,
   cors: {
-    origin: "*",
+    origin: true,
     credentials: true, // Ensure credentials are allowed
   },
 });
