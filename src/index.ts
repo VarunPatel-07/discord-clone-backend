@@ -24,7 +24,6 @@ import CloudUploader from "./routes/upload/CloudUploader";
 const Cors_Config = {
   origin: "*", // Update with your frontend URL
   credentials: true, // Allow cookies to be sent
-  methods: ["GET", "PUT", "POST", "DELETE"],
 };
 
 app.use(cors(Cors_Config));
