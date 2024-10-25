@@ -21,13 +21,14 @@ import Notification from "./routes/Notification";
 import OneToOneMessage from "./routes/OneToOneMessage";
 import CloudUploader from "./routes/upload/CloudUploader";
 
-app.use(
-  cors({
-    origin: true, // Update with your frontend URL
-    credentials: true, // Allow cookies to be sent
-    methods: ["GET", "PUT", "POST", "DELETE"],
-  })
-);
+const Cors_Config = {
+  origin: true, // Update with your frontend URL
+  credentials: true, // Allow cookies to be sent
+  methods: ["GET", "PUT", "POST", "DELETE"],
+};
+
+app.use(cors(Cors_Config));
+app.options("*", cors(Cors_Config));
 
 app.use(cookieParser());
 app.use(express.json());
@@ -78,11 +79,7 @@ const server = app.listen(Port, () => {
 });
 const io = new SocketIOServer(server, {
   pingTimeout: 60000,
-  cors: {
-    origin: true, // Update with your frontend URL
-    credentials: true, // Allow cookies to be sent
-    methods: ["GET", "PUT", "POST", "DELETE"],
-  },
+  cors: Cors_Config,
 });
 
 io.on("connection", (socket) => {
