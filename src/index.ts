@@ -53,6 +53,7 @@ app.use(
 
 //? creating routes
 // creating a route for authentication
+app.get("/", (req, res) => res.send("Hello from Express on Vercel!"));
 app.use("/app/api/auth", auth);
 app.use("/app/api/server", serverRout);
 app.use("/app/api/follow", Follow);
