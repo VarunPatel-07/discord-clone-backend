@@ -163,9 +163,9 @@ router.get("/userDetails", multer().none(), CheckAuthToken, async (req: any, res
       }
       await redis.set(req.user_id, JSON.stringify(user), "EX", 360);
       return res.status(200).json({ user, success: true });
-    }
+    }c
   } catch (error) {
-    // // // console.log(error);
+    console.log(error);
     return res.status(500).json({
       success: false,
       message: "Internal server error while getting user details",
